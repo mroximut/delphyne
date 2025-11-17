@@ -1,0 +1,417 @@
+# @config
+# modules: [baseline]
+# @end
+
+command: run_strategy
+args:
+  strategy: zebra_baseline
+  args:
+    puzzle: | 
+      There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each
+      house is occupied by a different person. Each house has a unique attribute for each of the    
+      following characteristics:
+      - Each person has a unique name: `Eric`, `Arnold`
+      - Each person has a unique type of pet: `dog`, `cat`
+
+      ## Clues:
+      1. Eric is somewhere to the left of Arnold.
+      2. The person who owns a dog is not in the first house.
+    puzzle_id: "lgp-test-2x2-33"
+  policy: zebra_baseline_policy
+  policy_args: {}
+  budget:
+    num_requests: 4 
+outcome:
+  status: completed
+  diagnostics: []
+  result:
+    success: true
+    values:
+      - - ["1", Eric, cat]
+        - ["2", Arnold, dog]
+    spent_budget:
+      num_requests: 2
+      num_completions: 2
+      input_tokens: 733
+      output_tokens: 761
+      cached_input_tokens: 0
+      price: 0.00170525
+    success_nodes: [3]
+    raw_trace:
+      nodes:
+        "1": nested($0)
+        "2": child(%1, $1{@1})
+        "3": child(%2, $2{@2})
+      spaces:
+        "0": main
+        "1": local(%1, cands)
+        "2": local(%2, cands)
+      answers:
+        "1":
+          space: 1
+          answer:
+            mode: null
+            content: |-
+              ```python
+              constraints = [
+                  name_eric < name_arnold
+              ]
+              ```
+            tool_calls: []
+            justification: null
+        "2":
+          space: 2
+          answer:
+            mode: null
+            content: |-
+              ```python
+              constraints = [
+                  z3.Not(type_of_pet_dog == 1)
+              ]
+              ```
+            tool_calls: []
+            justification: null
+    log:
+      - message: llm_request
+        level: info
+        message_id: 0
+        related: []
+        time: 2025-11-17T22:44:50.433834
+        node: null
+        space: 1
+        metadata:
+          query: FormalizeClue
+          request:
+            chat:
+              - role: system
+                content: |-
+                  Convert a single `clue` from a Zebra logic puzzle into Z3 constraints. The
+                  uniqueness contraints from `context` are already encoded in the solver.
+                  Each variable from `variable_names` is of type z3.Int() and
+                  available for use in your output snippet. A value of a variable is the
+                  number of the house that object occupies. Additionally, note that
+                  `previous_snippets` are used for formalizing previous clues, and `step`
+                  indicates the index of the current clue being formalized (0-based).
+
+                  Return Python code wrapped in a triple-backtick block. The code must define
+                  a list named `constraints` containing z3.BoolRef (if there is only one
+                  constraint, then it is a one-element list) capturing only the information
+                  from the provided clue. Do not modify the solver or call `check`. You must
+                  prepend `z3.` to all Z3 API calls. Do not include any import statements.
+              - role: user
+                content: |-
+                  context: "There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each\n\
+                    house is occupied by a different person. Each house has a unique attribute for each of the    \nfollowing\
+                    \ characteristics:\n- Each person has a unique name: `Eric`, `Arnold`\n- Each person has a unique type\
+                    \ of pet: `dog`, `cat`"
+                  clue: Eric is somewhere to the left of Arnold.
+                  previous_snippets: []
+                  variable_names:
+                    - name_eric
+                    - name_arnold
+                    - type_of_pet_dog
+                    - type_of_pet_cat
+                  step: 0
+            options: {}
+      - message: llm_response
+        level: info
+        message_id: 1
+        related: [0]
+        time: 2025-11-17T22:44:55.210570
+        node: null
+        space: 1
+        metadata:
+          response:
+            outputs:
+              - content: |-
+                  ```python
+                  constraints = [
+                      name_eric < name_arnold
+                  ]
+                  ```
+                tool_calls: []
+            budget:
+              values:
+                num_requests: 1
+                num_completions: 1
+                input_tokens: 355
+                output_tokens: 283
+                cached_input_tokens: 0
+                price: 0.00065475
+            log_items: []
+            model_name: gpt-5-mini-2025-08-07
+            usage_info:
+              completion_tokens: 283
+              prompt_tokens: 355
+              total_tokens: 638
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 256
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+          usage:
+            model: gpt-5-mini-2025-08-07
+            usage:
+              completion_tokens: 283
+              prompt_tokens: 355
+              total_tokens: 638
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 256
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+      - message: llm_request
+        level: info
+        message_id: 2
+        related: []
+        time: 2025-11-17T22:44:55.239508
+        node: null
+        space: 2
+        metadata:
+          query: FormalizeClue
+          request:
+            chat:
+              - role: system
+                content: |-
+                  Convert a single `clue` from a Zebra logic puzzle into Z3 constraints. The
+                  uniqueness contraints from `context` are already encoded in the solver.
+                  Each variable from `variable_names` is of type z3.Int() and
+                  available for use in your output snippet. A value of a variable is the
+                  number of the house that object occupies. Additionally, note that
+                  `previous_snippets` are used for formalizing previous clues, and `step`
+                  indicates the index of the current clue being formalized (0-based).
+
+                  Return Python code wrapped in a triple-backtick block. The code must define
+                  a list named `constraints` containing z3.BoolRef (if there is only one
+                  constraint, then it is a one-element list) capturing only the information
+                  from the provided clue. Do not modify the solver or call `check`. You must
+                  prepend `z3.` to all Z3 API calls. Do not include any import statements.
+              - role: user
+                content: |-
+                  context: "There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each\n\
+                    house is occupied by a different person. Each house has a unique attribute for each of the    \nfollowing\
+                    \ characteristics:\n- Each person has a unique name: `Eric`, `Arnold`\n- Each person has a unique type\
+                    \ of pet: `dog`, `cat`"
+                  clue: The person who owns a dog is not in the first house.
+                  previous_snippets:
+                    - |-
+                      constraints = [
+                          name_eric < name_arnold
+                      ]
+                  variable_names:
+                    - name_eric
+                    - name_arnold
+                    - type_of_pet_dog
+                    - type_of_pet_cat
+                  step: 1
+            options: {}
+      - message: llm_response
+        level: info
+        message_id: 3
+        related: [2]
+        time: 2025-11-17T22:45:05.004105
+        node: null
+        space: 2
+        metadata:
+          response:
+            outputs:
+              - content: |-
+                  ```python
+                  constraints = [
+                      z3.Not(type_of_pet_dog == 1)
+                  ]
+                  ```
+                tool_calls: []
+            budget:
+              values:
+                num_requests: 1
+                num_completions: 1
+                input_tokens: 378
+                output_tokens: 478
+                cached_input_tokens: 0
+                price: 0.0010505
+            log_items: []
+            model_name: gpt-5-mini-2025-08-07
+            usage_info:
+              completion_tokens: 478
+              prompt_tokens: 378
+              total_tokens: 856
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 448
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+          usage:
+            model: gpt-5-mini-2025-08-07
+            usage:
+              completion_tokens: 478
+              prompt_tokens: 378
+              total_tokens: 856
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 448
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+    browsable_trace:
+      nodes:
+        "1":
+          kind: Branch
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: FormalizeClue
+          tags: [FormalizeClue]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 1
+              - kind: query
+                name: FormalizeClue
+                args:
+                  context: |-
+                    There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each
+                    house is occupied by a different person. Each house has a unique attribute for each of the    
+                    following characteristics:
+                    - Each person has a unique name: `Eric`, `Arnold`
+                    - Each person has a unique type of pet: `dog`, `cat`
+                  clue: Eric is somewhere to the left of Arnold.
+                  previous_snippets: []
+                  variable_names:
+                    - name_eric
+                    - name_arnold
+                    - type_of_pet_dog
+                    - type_of_pet_cat
+                  step: 0
+                tags: [FormalizeClue]
+                answers:
+                  - id: 1
+                    hint: null
+                    value:
+                      short: |-
+                        constraints = [
+                            name_eric < name_arnold
+                        ]
+                      long: "'constraints = [\\n    name_eric < name_arnold\\n]'"
+                      json_provided: true
+                      json: |-
+                        constraints = [
+                            name_eric < name_arnold
+                        ]
+          actions:
+            - ref:
+                with_ids: $1{@1}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [1]
+              value:
+                short: |-
+                  constraints = [
+                      name_eric < name_arnold
+                  ]
+                long: "'constraints = [\\n    name_eric < name_arnold\\n]'"
+                json_provided: true
+                json: |-
+                  constraints = [
+                      name_eric < name_arnold
+                  ]
+              destination: 2
+          origin: root
+        "2":
+          kind: Branch
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: FormalizeClue
+          tags: [FormalizeClue]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 2
+              - kind: query
+                name: FormalizeClue
+                args:
+                  context: |-
+                    There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each
+                    house is occupied by a different person. Each house has a unique attribute for each of the    
+                    following characteristics:
+                    - Each person has a unique name: `Eric`, `Arnold`
+                    - Each person has a unique type of pet: `dog`, `cat`
+                  clue: The person who owns a dog is not in the first house.
+                  previous_snippets:
+                    - |-
+                      constraints = [
+                          name_eric < name_arnold
+                      ]
+                  variable_names:
+                    - name_eric
+                    - name_arnold
+                    - type_of_pet_dog
+                    - type_of_pet_cat
+                  step: 1
+                tags: [FormalizeClue]
+                answers:
+                  - id: 2
+                    hint: null
+                    value:
+                      short: |-
+                        constraints = [
+                            z3.Not(type_of_pet_dog == 1)
+                        ]
+                      long: "'constraints = [\\n    z3.Not(type_of_pet_dog == 1)\\n]'"
+                      json_provided: true
+                      json: |-
+                        constraints = [
+                            z3.Not(type_of_pet_dog == 1)
+                        ]
+          actions:
+            - ref:
+                with_ids: $2{@2}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [2]
+              value:
+                short: |-
+                  constraints = [
+                      z3.Not(type_of_pet_dog == 1)
+                  ]
+                long: "'constraints = [\\n    z3.Not(type_of_pet_dog == 1)\\n]'"
+                json_provided: true
+                json: |-
+                  constraints = [
+                      z3.Not(type_of_pet_dog == 1)
+                  ]
+              destination: 3
+          origin: [child, 1, 0]
+        "3":
+          kind: Success
+          success_value:
+            short: "[['1', 'Eric', 'cat'], ['2', 'Arnold', 'dog']]"
+            long: "[['1', 'Eric', 'cat'], ['2', 'Arnold', 'dog']]"
+            json_provided: true
+            json:
+              - ["1", Eric, cat]
+              - ["2", Arnold, dog]
+          summary_message: null
+          leaf_node: true
+          label: null
+          tags: []
+          properties: []
+          actions: []
+          origin: [child, 2, 0]
+      spaces:
+        "1": [1, 0]
+        "2": [2, 0]

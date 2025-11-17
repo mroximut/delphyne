@@ -1,0 +1,23 @@
+# @config
+# modules: [baseline]
+# @end
+
+command: run_strategy
+args:
+  strategy: zebra_baseline
+  args:
+    puzzle: | 
+      There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each
+      house is occupied by a different person. Each house has a unique attribute for each of the    
+      following characteristics:
+      - Each person has a unique name: `Eric`, `Arnold`
+      - Each person has a unique type of pet: `dog`, `cat`
+
+      ## Clues:
+      1. Eric is somewhere to the left of Arnold.
+      2. The person who owns a dog is not in the first house.
+    puzzle_id: "lgp-test-2x2-33"
+  policy: zebra_baseline_policy
+  policy_args: {}
+  budget:
+    num_requests: 4 
