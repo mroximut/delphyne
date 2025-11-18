@@ -78,6 +78,7 @@ class SolverState(NamedTuple):
     z3vars_for_attr: dict[str, dict[str, z3.ArithRef]]
     exec_global_vars: dict[str, object]
     variable_names: list[str]
+    last_constraints: list[list[z3.BoolRef]] = [[]]
 
 
 def build_solver(puzzle: ZebraPuzzle) -> SolverState:

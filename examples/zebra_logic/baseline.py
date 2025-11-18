@@ -1,42 +1,34 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, assert_never, cast
+from typing import Iterable, Never, assert_never, cast
 
 import pandas as pd
 import z3  # type: ignore
 from zebra_parser import (
     SolverState,
+    ZebraPuzzle,
     build_solver,
     model_to_solution,
     parse_puzzle,
 )
 
 import delphyne as dp
-from delphyne import Branch, Fail, Strategy, strategy
+from delphyne import Branch, Compute, Fail, Strategy, strategy
 
 # pyright: strict
 # fmt: on
 
-solutions_csv: Path = (
+SOLUTIONS_CSV: Path = (
     Path(__file__).resolve().parent
     / "datasets--allenai--ZebraLogicBench-private"
     / "zebra_logic_bench_solutions.csv"
 )
-solutions_df: pd.DataFrame = pd.read_csv(solutions_csv)  # type: ignore
 
 
 def execute_constraint_snippet(
     snippet: str, *, state: SolverState
 ) -> list[z3.BoolRef]:
-    """
-    Execute a constraint snippet in the given solver state.
-    The snippet is expected to define either `constraint` or
-    `constraints`. If the defined object is an iterable,
-    its items are returned as a list. Otherwise,
-    a single-item list containing the object is returned.
-    """
-
     global_vars = state.exec_global_vars
     local_vars: dict[str, object] = {}
     exec(snippet, global_vars, local_vars)
@@ -51,7 +43,7 @@ def execute_constraint_snippet(
 
 
 @dataclass
-class FormalizeClue(dp.Query[str]):
+class FormalizeClue(dp.Query[dp.Response[str, Never]]):
     """
     Convert a single `clue` from a Zebra logic puzzle into Z3 constraints. The
     uniqueness contraints from `context` are already encoded in the solver.
@@ -73,8 +65,9 @@ class FormalizeClue(dp.Query[str]):
     previous_snippets: list[str]
     variable_names: list[str]
     step: int
+    prefix: dp.AnswerPrefix
 
-    __parser__ = dp.last_code_block.trim
+    __parser__ = dp.last_code_block.trim.response
 
 
 @dataclass
@@ -103,7 +96,7 @@ def zebra_baseline(
     puzzle: str, puzzle_id: str | None = None
 ) -> "Strategy[Branch | Fail, ZebraBaselineIP, list[list[str]]]":
     try:
-        parsed = parse_puzzle(puzzle, id=puzzle_id)
+        parsed: ZebraPuzzle = parse_puzzle(puzzle, id=puzzle_id)
     except ValueError as exc:
         assert_never((yield from dp.fail("parse_error", message=str(exc))))
 
@@ -115,43 +108,75 @@ def zebra_baseline(
         )
 
     code_history: list[str] = []
-    for step, clue in enumerate(parsed.clues):
-        snippet = yield from dp.branch(
-            FormalizeClue(
+    for step_idx, clue in enumerate(parsed.clues):
+        # LLM formalizes clue, gets feedback if wrong, retries
+        snippet = yield from dp.interact(
+            step=lambda prefix, _,: FormalizeClue(
                 context=parsed.context,
                 clue=clue,
                 previous_snippets=code_history,
                 variable_names=state.variable_names,
-                step=step,
-            ).using(lambda p: p.formalize, ZebraBaselineIP)
+                step=step_idx,
+                prefix=prefix,
+            ).using(lambda p: p.formalize, ZebraBaselineIP),
+            process=lambda snippet, _: check_and_add_constraints(
+                state, snippet, is_last=(step_idx == len(parsed.clues) - 1)
+            ).using(dp.just_compute),
         )
-        try:
-            constraints = execute_constraint_snippet(snippet, state=state)
-            state.solver.add(*constraints)  # type: ignore
-        except Exception as exc:
-            assert_never(
-                (
-                    yield from dp.fail(
-                        "constraint_execution_error", message=str(exc)
-                    )
-                )
-            )
-        if state.solver.check() != z3.sat:  # type: ignore
-            assert_never(
-                (
-                    yield from dp.fail(
-                        "unsat_after_adding_constraint",
-                        message=f"Adding constraint from clue {step + 1} \
-                        led to unsatisfiability.",
-                    )
-                )
-            )
+
         code_history.append(snippet)
 
+    state.solver.check()  # type: ignore
     solution = model_to_solution(state)
     if puzzle_id:
+        solutions_df = pd.read_csv(SOLUTIONS_CSV)  # type: ignore
         yield from dp.ensure(check_solution(solution, puzzle_id, solutions_df))
     return solution
+
+
+@strategy
+def check_and_add_constraints(
+    state: SolverState, snippet: str, is_last: bool
+) -> dp.Strategy[Compute, object, str | dp.Error]:
+    def smt_call(snippet: str) -> str:
+        try:
+            print(snippet)
+            constraints = execute_constraint_snippet(snippet, state=state)
+            state.last_constraints[0] = constraints
+            result = state.solver.check(*state.last_constraints[0])  # type: ignore
+            return str(result)
+        except Exception as exc:
+            return f"__error__:{type(exc).__name__}:{str(exc)}"
+
+    sat_result = yield from dp.compute(smt_call)(snippet)
+
+    if sat_result.startswith("__error__"):
+        _, exc_type, exc_msg = sat_result.split(":", 2)
+        return dp.Error(
+            label="constraint_execution_error",
+            meta={
+                "error": exc_type + "\n" + exc_msg,
+                "snippet": snippet,
+            },
+        )
+    elif sat_result == "sat":
+        state.solver.add(*state.last_constraints[0])  # type: ignore
+        # if is_last:
+        #     print("Final check...")
+        #     def check_sat() -> str:
+        #         result = state.solver.check()  # type: ignore
+        #         return str(result)
+        #     _ = yield from dp.compute(check_sat)()
+        return snippet
+    else:
+        return dp.Error(
+            label="unsatisfiable_constraints",
+            meta={
+                "snippet": snippet,
+                "error": "The formalized constraints make the puzzle "
+                "unsatisfiable.",
+            },
+        )
 
 
 @dp.ensure_compatible(zebra_baseline)
@@ -196,8 +221,12 @@ if __name__ == "__main__":
     res, _ = (
         zebra_baseline(example_puzzle, puzzle_id)
         .run_toplevel(
-            dp.PolicyEnv(demonstration_files=[]), zebra_baseline_policy()
+            dp.PolicyEnv(
+                demonstration_files=[],
+                prompt_dirs=[Path(__file__).parent / "prompts"],
+            ),
+            zebra_baseline_policy(),
         )
         .collect(budget=budget, num_generated=1)
     )
-    print(res[0].tracked.value)
+    print(res)

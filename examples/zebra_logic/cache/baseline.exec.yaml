@@ -1,6 +1,3 @@
-# @config
-# modules: [baseline]
-# @end
 
 command: run_strategy
 args:
@@ -20,7 +17,7 @@ args:
   policy: zebra_baseline_policy
   policy_args: {}
   budget:
-    num_requests: 4 
+    num_requests: 4
 outcome:
   status: completed
   diagnostics: []
@@ -30,45 +27,101 @@ outcome:
       - - ["1", Eric, cat]
         - ["2", Arnold, dog]
     spent_budget:
-      num_requests: 2
-      num_completions: 2
-      input_tokens: 733
-      output_tokens: 761
+      num_requests: 3
+      num_completions: 3
+      input_tokens: 1171
+      output_tokens: 1370
       cached_input_tokens: 0
-      price: 0.00170525
-    success_nodes: [3]
+      price: 0.00303275
+    success_nodes: [13]
     raw_trace:
       nodes:
         "1": nested($0)
         "2": child(%1, $1{@1})
-        "3": child(%2, $2{@2})
+        "3": nested($2)
+        "4": child(%3, $3{@2})
+        "5": child(%2, $2{%4})
+        "6": child(%5, $4{@3})
+        "7": nested($5)
+        "8": child(%7, $6{@4})
+        "9": child(%6, $5{%8})
+        "10": child(%9, $7{@5})
+        "11": nested($8)
+        "12": child(%11, $9{@6})
+        "13": child(%10, $8{%12})
       spaces:
         "0": main
         "1": local(%1, cands)
         "2": local(%2, cands)
+        "3": local(%3, query)
+        "4": local(%5, cands)
+        "5": local(%6, cands)
+        "6": local(%7, query)
+        "7": local(%9, cands)
+        "8": local(%10, cands)
+        "9": local(%11, query)
       answers:
         "1":
           space: 1
           answer:
             mode: null
             content: |-
-              ```python
+              ```
+              constraints = [
+                  z3.Ult(name_eric, name_arnold)
+              ]
+              ```
+            tool_calls: []
+            justification: null
+        "2":
+          space: 3
+          answer:
+            mode: null
+            content: |
+              __error__:AttributeError:module 'z3' has no attribute 'Ult'
+              ...
+            tool_calls: []
+            justification: null
+        "3":
+          space: 4
+          answer:
+            mode: null
+            content: |-
+              ```
               constraints = [
                   name_eric < name_arnold
               ]
               ```
             tool_calls: []
             justification: null
-        "2":
-          space: 2
+        "4":
+          space: 6
+          answer:
+            mode: null
+            content: |
+              sat
+              ...
+            tool_calls: []
+            justification: null
+        "5":
+          space: 7
           answer:
             mode: null
             content: |-
               ```python
               constraints = [
-                  z3.Not(type_of_pet_dog == 1)
+                  z3.Not(type_of_pet_dog == z3.IntVal(1))
               ]
               ```
+            tool_calls: []
+            justification: null
+        "6":
+          space: 9
+          answer:
+            mode: null
+            content: |
+              sat
+              ...
             tool_calls: []
             justification: null
     log:
@@ -76,7 +129,7 @@ outcome:
         level: info
         message_id: 0
         related: []
-        time: 2025-11-17T22:44:50.433834
+        time: 2025-11-19T00:34:25.262037
         node: null
         space: 1
         metadata:
@@ -117,14 +170,135 @@ outcome:
         level: info
         message_id: 1
         related: [0]
-        time: 2025-11-17T22:44:55.210570
+        time: 2025-11-19T00:34:33.055540
         node: null
         space: 1
         metadata:
           response:
             outputs:
               - content: |-
-                  ```python
+                  ```
+                  constraints = [
+                      z3.Ult(name_eric, name_arnold)
+                  ]
+                  ```
+                tool_calls: []
+            budget:
+              values:
+                num_requests: 1
+                num_completions: 1
+                input_tokens: 355
+                output_tokens: 414
+                cached_input_tokens: 0
+                price: 0.0009167499999999999
+            log_items: []
+            model_name: gpt-5-mini-2025-08-07
+            usage_info:
+              completion_tokens: 414
+              prompt_tokens: 355
+              total_tokens: 769
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 384
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+          usage:
+            model: gpt-5-mini-2025-08-07
+            usage:
+              completion_tokens: 414
+              prompt_tokens: 355
+              total_tokens: 769
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 384
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+      - message: llm_request
+        level: info
+        message_id: 2
+        related: []
+        time: 2025-11-19T00:34:33.088972
+        node: null
+        space: 4
+        metadata:
+          query: FormalizeClue
+          request:
+            chat:
+              - role: system
+                content: |-
+                  Convert a single `clue` from a Zebra logic puzzle into Z3 constraints. The
+                  uniqueness contraints from `context` are already encoded in the solver.
+                  Each variable from `variable_names` is of type z3.Int() and
+                  available for use in your output snippet. A value of a variable is the
+                  number of the house that object occupies. Additionally, note that
+                  `previous_snippets` are used for formalizing previous clues, and `step`
+                  indicates the index of the current clue being formalized (0-based).
+
+                  Return Python code wrapped in a triple-backtick block. The code must define
+                  a list named `constraints` containing z3.BoolRef (if there is only one
+                  constraint, then it is a one-element list) capturing only the information
+                  from the provided clue. Do not modify the solver or call `check`. You must
+                  prepend `z3.` to all Z3 API calls. Do not include any import statements.
+              - role: user
+                content: |-
+                  context: "There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each\n\
+                    house is occupied by a different person. Each house has a unique attribute for each of the    \nfollowing\
+                    \ characteristics:\n- Each person has a unique name: `Eric`, `Arnold`\n- Each person has a unique type\
+                    \ of pet: `dog`, `cat`"
+                  clue: Eric is somewhere to the left of Arnold.
+                  previous_snippets: []
+                  variable_names:
+                    - name_eric
+                    - name_arnold
+                    - type_of_pet_dog
+                    - type_of_pet_cat
+                  step: 0
+              - role: assistant
+                answer:
+                  mode: null
+                  content: |-
+                    ```
+                    constraints = [
+                        z3.Ult(name_eric, name_arnold)
+                    ]
+                    ```
+              - role: user
+                content: |+
+                  
+                  Tried to execute the following constraint snippet:
+
+                  """
+                  constraints = [
+                      z3.Ult(name_eric, name_arnold)
+                  ]
+                  """
+
+                  but encountered the following error:
+
+                  """
+                  AttributeError
+                  module 'z3' has no attribute 'Ult'
+                  """
+
+            options: {}
+      - message: llm_response
+        level: info
+        message_id: 3
+        related: [2]
+        time: 2025-11-19T00:34:42.492572
+        node: null
+        space: 4
+        metadata:
+          response:
+            outputs:
+              - content: |-
+                  ```
                   constraints = [
                       name_eric < name_arnold
                   ]
@@ -134,20 +308,20 @@ outcome:
               values:
                 num_requests: 1
                 num_completions: 1
-                input_tokens: 355
-                output_tokens: 283
+                input_tokens: 438
+                output_tokens: 538
                 cached_input_tokens: 0
-                price: 0.00065475
+                price: 0.0011855
             log_items: []
             model_name: gpt-5-mini-2025-08-07
             usage_info:
-              completion_tokens: 283
-              prompt_tokens: 355
-              total_tokens: 638
+              completion_tokens: 538
+              prompt_tokens: 438
+              total_tokens: 976
               completion_tokens_details:
                 accepted_prediction_tokens: 0
                 audio_tokens: 0
-                reasoning_tokens: 256
+                reasoning_tokens: 512
                 rejected_prediction_tokens: 0
               prompt_tokens_details:
                 audio_tokens: 0
@@ -155,24 +329,24 @@ outcome:
           usage:
             model: gpt-5-mini-2025-08-07
             usage:
-              completion_tokens: 283
-              prompt_tokens: 355
-              total_tokens: 638
+              completion_tokens: 538
+              prompt_tokens: 438
+              total_tokens: 976
               completion_tokens_details:
                 accepted_prediction_tokens: 0
                 audio_tokens: 0
-                reasoning_tokens: 256
+                reasoning_tokens: 512
                 rejected_prediction_tokens: 0
               prompt_tokens_details:
                 audio_tokens: 0
                 cached_tokens: 0
       - message: llm_request
         level: info
-        message_id: 2
+        message_id: 4
         related: []
-        time: 2025-11-17T22:44:55.239508
+        time: 2025-11-19T00:34:42.524363
         node: null
-        space: 2
+        space: 7
         metadata:
           query: FormalizeClue
           request:
@@ -213,18 +387,18 @@ outcome:
             options: {}
       - message: llm_response
         level: info
-        message_id: 3
-        related: [2]
-        time: 2025-11-17T22:45:05.004105
+        message_id: 5
+        related: [4]
+        time: 2025-11-19T00:34:59.335655
         node: null
-        space: 2
+        space: 7
         metadata:
           response:
             outputs:
               - content: |-
                   ```python
                   constraints = [
-                      z3.Not(type_of_pet_dog == 1)
+                      z3.Not(type_of_pet_dog == z3.IntVal(1))
                   ]
                   ```
                 tool_calls: []
@@ -233,19 +407,19 @@ outcome:
                 num_requests: 1
                 num_completions: 1
                 input_tokens: 378
-                output_tokens: 478
+                output_tokens: 418
                 cached_input_tokens: 0
-                price: 0.0010505
+                price: 0.0009304999999999999
             log_items: []
             model_name: gpt-5-mini-2025-08-07
             usage_info:
-              completion_tokens: 478
+              completion_tokens: 418
               prompt_tokens: 378
-              total_tokens: 856
+              total_tokens: 796
               completion_tokens_details:
                 accepted_prediction_tokens: 0
                 audio_tokens: 0
-                reasoning_tokens: 448
+                reasoning_tokens: 384
                 rejected_prediction_tokens: 0
               prompt_tokens_details:
                 audio_tokens: 0
@@ -253,13 +427,13 @@ outcome:
           usage:
             model: gpt-5-mini-2025-08-07
             usage:
-              completion_tokens: 478
+              completion_tokens: 418
               prompt_tokens: 378
-              total_tokens: 856
+              total_tokens: 796
               completion_tokens_details:
                 accepted_prediction_tokens: 0
                 audio_tokens: 0
-                reasoning_tokens: 448
+                reasoning_tokens: 384
                 rejected_prediction_tokens: 0
               prompt_tokens_details:
                 audio_tokens: 0
@@ -294,21 +468,27 @@ outcome:
                     - type_of_pet_dog
                     - type_of_pet_cat
                   step: 0
+                  prefix: []
                 tags: [FormalizeClue]
                 answers:
                   - id: 1
                     hint: null
                     value:
-                      short: |-
-                        constraints = [
-                            name_eric < name_arnold
-                        ]
-                      long: "'constraints = [\\n    name_eric < name_arnold\\n]'"
-                      json_provided: true
-                      json: |-
-                        constraints = [
-                            name_eric < name_arnold
-                        ]
+                      short: Response(answer=Answer(mode=None, content='```\nconstraints = [\n    z3.Ult(name_eric, name_arnold)\n]\n```', tool_calls=(), justification=None), parsed=FinalAnswer(final='constraints = [\n    z3.Ult(name_eric, name_arnold)\n]'))
+                      long: |-
+                        Response(answer=Answer(mode=None,
+                                               content='```\n'
+                                                       'constraints = [\n'
+                                                       '    z3.Ult(name_eric, name_arnold)\n'
+                                                       ']\n'
+                                                       '```',
+                                               tool_calls=(),
+                                               justification=None),
+                                 parsed=FinalAnswer(final='constraints = [\n'
+                                                          '    z3.Ult(name_eric, name_arnold)\n'
+                                                          ']'))
+                      json_provided: false
+                      json: null
           actions:
             - ref:
                 with_ids: $1{@1}
@@ -316,6 +496,450 @@ outcome:
               hints: null
               related_success_nodes: []
               related_answers: [1]
+              value:
+                short: Response(answer=Answer(mode=None, content='```\nconstraints = [\n    z3.Ult(name_eric, name_arnold)\n]\n```', tool_calls=(), justification=None), parsed=FinalAnswer(final='constraints = [\n    z3.Ult(name_eric, name_arnold)\n]'))
+                long: |-
+                  Response(answer=Answer(mode=None,
+                                         content='```\n'
+                                                 'constraints = [\n'
+                                                 '    z3.Ult(name_eric, name_arnold)\n'
+                                                 ']\n'
+                                                 '```',
+                                         tool_calls=(),
+                                         justification=None),
+                           parsed=FinalAnswer(final='constraints = [\n'
+                                                    '    z3.Ult(name_eric, name_arnold)\n'
+                                                    ']'))
+                json_provided: false
+                json: null
+              destination: 2
+          origin: root
+        "2":
+          kind: Run
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: check_and_add_constraints
+          tags: [check_and_add_constraints]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 2
+              - kind: nested
+                strategy: check_and_add_constraints
+                args:
+                  state:
+                    short: |-
+                      SolverState(solver=[name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat], z3vars_for_attr={'name': {'Eric': name_eric, 'Arnold': name_arnold}, 'type_of_pet': {'dog': type_of_pet_dog, 'cat': type_of_pet_cat}}, exec_global_vars={'num_houses': 2, 'solver': [name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat], 'z3': <module 'z3' from '/home/oguz/miniconda3/envs/delphyne/lib/python3.12/site-packages/z3/__init__.py'>, 'name_eric': name_eric, 'name_arnold': name_arnold, 'type_of_pet_dog': type_of_pet_dog, 'type_of_pet_cat': type_of_pet_cat, '__builtins__': {'__name__': 'builtins', '__doc__': "Built-in functions, types, exceptions, and other objects.\n\nThis module provides direct access to all 'built-in'\nidentifiers of Python; for example, builtins.len is\nthe full name for the built-in function len().\n\nThis module is not normally accessed explicitly by most\napplications, but can be useful in modules that provide\nobjects with the same name as a built-in value, but in\nwhich the built-in of that name is also needed.", '__package__': '', '__loader__': <class '_frozen_importlib.BuiltinImporter'>, '__spec__': ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>, origin='built-in'), '__build_class__': <built-in function __build_class__>, '__import__': <built-in function __import__>, 'abs': <built-in function abs>, 'all': <built-in function all>, 'any': <built-in function any>, 'ascii': <built-in function ascii>, 'bin': <built-in function bin>, 'breakpoint': <built-in function breakpoint>, 'callable': <built-in function callable>, 'chr': <built-in function chr>, 'compile': <built-in function compile>, 'delattr': <built-in function delattr>, 'dir': <built-in function dir>, 'divmod': <built-in function divmod>, 'eval': <built-in function eval>, 'exec': <built-in function exec>, 'format': <built-in function format>, 'getattr': <built-in function getattr>, 'globals': <built-in function globals>, 'hasattr': <built-in function hasattr>, 'hash': <built-in function hash>, 'hex': <built-in function hex>, 'id': <built-in function id>, 'input': <built-in function input>, 'isinstance': <built-in function isinstance>, 'issubclass': <built-in function issubclass>, 'iter': <built-in function iter>, 'aiter': <built-in function aiter>, 'len': <built-in function len>, 'locals': <built-in function locals>, 'max': <built-in function max>, 'min': <built-in function min>, 'next': <built-in function next>, 'anext': <built-in function anext>, 'oct': <built-in function oct>, 'ord': <built-in function ord>, 'pow': <built-in function pow>, 'print': <built-in function print>, 'repr': <built-in function repr>, 'round': <built-in function round>, 'setattr': <built-in function setattr>, 'sorted': <built-in function sorted>, 'sum': <built-in function sum>, 'vars': <built-in function vars>, 'None': None, 'Ellipsis': Ellipsis, 'NotImplemented': NotImplemented, 'False': False, 'True': True, 'bool': <class 'bool'>, 'memoryview': <class 'memoryview'>, 'bytearray': <class 'bytearray'>, 'bytes': <class 'bytes'>, 'classmethod': <class 'classmethod'>, 'complex': <class 'complex'>, 'dict': <class 'dict'>, 'enumerate': <class 'enumerate'>, 'filter': <class 'filter'>, 'float': <class 'float'>, 'frozenset': <class 'frozenset'>, 'property': <class 'property'>, 'int': <class 'int'>, 'list': <class 'list'>, 'map': <class 'map'>, 'object': <class 'object'>, 'range': <class 'range'>, 'reversed': <class 'reversed'>, 'set': <class 'set'>, 'slice': <class 'slice'>, 'staticmethod': <class 'staticmethod'>, 'str': <class 'str'>, 'super': <class 'super'>, 'tuple': <class 'tuple'>, 'type': <class 'type'>, 'zip': <class 'zip'>, '__debug__': True, 'BaseException': <class 'BaseException'>, 'BaseExceptionGroup': <class 'BaseExceptionGroup'>, 'Exception': <class 'Exception'>, 'GeneratorExit': <class 'GeneratorExit'>, 'KeyboardInterrupt': <class 'KeyboardInterrupt'>, 'SystemExit': <class 'SystemExit'>, 'ArithmeticError': <class 'ArithmeticError'>, 'AssertionError': <class 'AssertionError'>, 'AttributeError': <class 'AttributeError'>, 'BufferError': <class 'BufferError'>, 'EOFError': <class 'EOFError'>, 'ImportError': <class 'ImportError'>, 'LookupError': <class 'LookupError'>, 'MemoryError': <class 'MemoryError'>, 'NameError': <class 'NameError'>, 'OSError': <class 'OSError'>, 'ReferenceError': <class 'ReferenceError'>, 'RuntimeError': <class 'RuntimeError'>, 'StopAsyncIteration': <class 'StopAsyncIteration'>, 'StopIteration': <class 'StopIteration'>, 'SyntaxError': <class 'SyntaxError'>, 'SystemError': <class 'SystemError'>, 'TypeError': <class 'TypeError'>, 'ValueError': <class 'ValueError'>, 'Warning': <class 'Warning'>, 'FloatingPointError': <class 'FloatingPointError'>, 'OverflowError': <class 'OverflowError'>, 'ZeroDivisionError': <class 'ZeroDivisionError'>, 'BytesWarning': <class 'BytesWarning'>, 'DeprecationWarning': <class 'DeprecationWarning'>, 'EncodingWarning': <class 'EncodingWarning'>, 'FutureWarning': <class 'FutureWarning'>, 'ImportWarning': <class 'ImportWarning'>, 'PendingDeprecationWarning': <class 'PendingDeprecationWarning'>, 'ResourceWarning': <class 'ResourceWarning'>, 'RuntimeWarning': <class 'RuntimeWarning'>, 'SyntaxWarning': <class 'SyntaxWarning'>, 'UnicodeWarning': <class 'UnicodeWarning'>, 'UserWarning': <class 'UserWarning'>, 'BlockingIOError': <class 'BlockingIOError'>, 'ChildProcessError': <class 'ChildProcessError'>, 'ConnectionError': <class 'ConnectionError'>, 'FileExistsError': <class 'FileExistsError'>, 'FileNotFoundError': <class 'FileNotFoundError'>, 'InterruptedError': <class 'InterruptedError'>, 'IsADirectoryError': <class 'IsADirectoryError'>, 'NotADirectoryError': <class 'NotADirectoryError'>, 'PermissionError': <class 'PermissionError'>, 'ProcessLookupError': <class 'ProcessLookupError'>, 'TimeoutError': <class 'TimeoutError'>, 'IndentationError': <class 'IndentationError'>, 'IndexError': <class 'IndexError'>, 'KeyError': <class 'KeyError'>, 'ModuleNotFoundError': <class 'ModuleNotFoundError'>, 'NotImplementedError': <class 'NotImplementedError'>, 'RecursionError': <class 'RecursionError'>, 'UnboundLocalError': <class 'UnboundLocalError'>, 'UnicodeError': <class 'UnicodeError'>, 'BrokenPipeError': <class 'BrokenPipeError'>, 'ConnectionAbortedError': <class 'ConnectionAbortedError'>, 'ConnectionRefusedError': <class 'ConnectionRefusedError'>, 'ConnectionResetError': <class 'ConnectionResetError'>, 'TabError': <class 'TabError'>, 'UnicodeDecodeError': <class 'UnicodeDecodeError'>, 'UnicodeEncodeError': <class 'UnicodeEncodeError'>, 'UnicodeTranslateError': <class 'UnicodeTranslateError'>, 'ExceptionGroup': <class 'ExceptionGroup'>, 'EnvironmentError': <class 'OSError'>, 'IOError': <class 'OSError'>, 'open': <built-in function open>, 'quit': Use quit() or Ctrl-D (i.e. EOF) to exit, 'exit': Use exit() or Ctrl-D (i.e. EOF) to exit, 'copyright': Copyright (c) 2001-2023 Python Software Foundation.
+                      All Rights Reserved.
+
+                      Copyright (c) 2000 BeOpen.com.
+                      All Rights Reserved.
+
+                      Copyright (c) 1995-2001 Corporation for National Research Initiatives.
+                      All Rights Reserved.
+
+                      Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.
+                      All Rights Reserved., 'credits':     Thanks to CWI, CNRI, BeOpen, Zope Corporation, the Python Software
+                          Foundation, and a cast of thousands for supporting Python
+                          development.  See www.python.org for more information., 'license': Type license() to see the full license text, 'help': Type help() for interactive help, or help(object) for help about object.}}, variable_names=['name_eric', 'name_arnold', 'type_of_pet_dog', 'type_of_pet_cat'], last_constraints=[[Not(1 == type_of_pet_dog)]])
+                    long: |-
+                      SolverState(solver=[name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat], z3vars_for_attr={'name': {'Eric': name_eric, 'Arnold': name_arnold}, 'type_of_pet': {'dog': type_of_pet_dog, 'cat': type_of_pet_cat}}, exec_global_vars={'num_houses': 2, 'solver': [name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat], 'z3': <module 'z3' from '/home/oguz/miniconda3/envs/delphyne/lib/python3.12/site-packages/z3/__init__.py'>, 'name_eric': name_eric, 'name_arnold': name_arnold, 'type_of_pet_dog': type_of_pet_dog, 'type_of_pet_cat': type_of_pet_cat, '__builtins__': {'__name__': 'builtins', '__doc__': "Built-in functions, types, exceptions, and other objects.\n\nThis module provides direct access to all 'built-in'\nidentifiers of Python; for example, builtins.len is\nthe full name for the built-in function len().\n\nThis module is not normally accessed explicitly by most\napplications, but can be useful in modules that provide\nobjects with the same name as a built-in value, but in\nwhich the built-in of that name is also needed.", '__package__': '', '__loader__': <class '_frozen_importlib.BuiltinImporter'>, '__spec__': ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>, origin='built-in'), '__build_class__': <built-in function __build_class__>, '__import__': <built-in function __import__>, 'abs': <built-in function abs>, 'all': <built-in function all>, 'any': <built-in function any>, 'ascii': <built-in function ascii>, 'bin': <built-in function bin>, 'breakpoint': <built-in function breakpoint>, 'callable': <built-in function callable>, 'chr': <built-in function chr>, 'compile': <built-in function compile>, 'delattr': <built-in function delattr>, 'dir': <built-in function dir>, 'divmod': <built-in function divmod>, 'eval': <built-in function eval>, 'exec': <built-in function exec>, 'format': <built-in function format>, 'getattr': <built-in function getattr>, 'globals': <built-in function globals>, 'hasattr': <built-in function hasattr>, 'hash': <built-in function hash>, 'hex': <built-in function hex>, 'id': <built-in function id>, 'input': <built-in function input>, 'isinstance': <built-in function isinstance>, 'issubclass': <built-in function issubclass>, 'iter': <built-in function iter>, 'aiter': <built-in function aiter>, 'len': <built-in function len>, 'locals': <built-in function locals>, 'max': <built-in function max>, 'min': <built-in function min>, 'next': <built-in function next>, 'anext': <built-in function anext>, 'oct': <built-in function oct>, 'ord': <built-in function ord>, 'pow': <built-in function pow>, 'print': <built-in function print>, 'repr': <built-in function repr>, 'round': <built-in function round>, 'setattr': <built-in function setattr>, 'sorted': <built-in function sorted>, 'sum': <built-in function sum>, 'vars': <built-in function vars>, 'None': None, 'Ellipsis': Ellipsis, 'NotImplemented': NotImplemented, 'False': False, 'True': True, 'bool': <class 'bool'>, 'memoryview': <class 'memoryview'>, 'bytearray': <class 'bytearray'>, 'bytes': <class 'bytes'>, 'classmethod': <class 'classmethod'>, 'complex': <class 'complex'>, 'dict': <class 'dict'>, 'enumerate': <class 'enumerate'>, 'filter': <class 'filter'>, 'float': <class 'float'>, 'frozenset': <class 'frozenset'>, 'property': <class 'property'>, 'int': <class 'int'>, 'list': <class 'list'>, 'map': <class 'map'>, 'object': <class 'object'>, 'range': <class 'range'>, 'reversed': <class 'reversed'>, 'set': <class 'set'>, 'slice': <class 'slice'>, 'staticmethod': <class 'staticmethod'>, 'str': <class 'str'>, 'super': <class 'super'>, 'tuple': <class 'tuple'>, 'type': <class 'type'>, 'zip': <class 'zip'>, '__debug__': True, 'BaseException': <class 'BaseException'>, 'BaseExceptionGroup': <class 'BaseExceptionGroup'>, 'Exception': <class 'Exception'>, 'GeneratorExit': <class 'GeneratorExit'>, 'KeyboardInterrupt': <class 'KeyboardInterrupt'>, 'SystemExit': <class 'SystemExit'>, 'ArithmeticError': <class 'ArithmeticError'>, 'AssertionError': <class 'AssertionError'>, 'AttributeError': <class 'AttributeError'>, 'BufferError': <class 'BufferError'>, 'EOFError': <class 'EOFError'>, 'ImportError': <class 'ImportError'>, 'LookupError': <class 'LookupError'>, 'MemoryError': <class 'MemoryError'>, 'NameError': <class 'NameError'>, 'OSError': <class 'OSError'>, 'ReferenceError': <class 'ReferenceError'>, 'RuntimeError': <class 'RuntimeError'>, 'StopAsyncIteration': <class 'StopAsyncIteration'>, 'StopIteration': <class 'StopIteration'>, 'SyntaxError': <class 'SyntaxError'>, 'SystemError': <class 'SystemError'>, 'TypeError': <class 'TypeError'>, 'ValueError': <class 'ValueError'>, 'Warning': <class 'Warning'>, 'FloatingPointError': <class 'FloatingPointError'>, 'OverflowError': <class 'OverflowError'>, 'ZeroDivisionError': <class 'ZeroDivisionError'>, 'BytesWarning': <class 'BytesWarning'>, 'DeprecationWarning': <class 'DeprecationWarning'>, 'EncodingWarning': <class 'EncodingWarning'>, 'FutureWarning': <class 'FutureWarning'>, 'ImportWarning': <class 'ImportWarning'>, 'PendingDeprecationWarning': <class 'PendingDeprecationWarning'>, 'ResourceWarning': <class 'ResourceWarning'>, 'RuntimeWarning': <class 'RuntimeWarning'>, 'SyntaxWarning': <class 'SyntaxWarning'>, 'UnicodeWarning': <class 'UnicodeWarning'>, 'UserWarning': <class 'UserWarning'>, 'BlockingIOError': <class 'BlockingIOError'>, 'ChildProcessError': <class 'ChildProcessError'>, 'ConnectionError': <class 'ConnectionError'>, 'FileExistsError': <class 'FileExistsError'>, 'FileNotFoundError': <class 'FileNotFoundError'>, 'InterruptedError': <class 'InterruptedError'>, 'IsADirectoryError': <class 'IsADirectoryError'>, 'NotADirectoryError': <class 'NotADirectoryError'>, 'PermissionError': <class 'PermissionError'>, 'ProcessLookupError': <class 'ProcessLookupError'>, 'TimeoutError': <class 'TimeoutError'>, 'IndentationError': <class 'IndentationError'>, 'IndexError': <class 'IndexError'>, 'KeyError': <class 'KeyError'>, 'ModuleNotFoundError': <class 'ModuleNotFoundError'>, 'NotImplementedError': <class 'NotImplementedError'>, 'RecursionError': <class 'RecursionError'>, 'UnboundLocalError': <class 'UnboundLocalError'>, 'UnicodeError': <class 'UnicodeError'>, 'BrokenPipeError': <class 'BrokenPipeError'>, 'ConnectionAbortedError': <class 'ConnectionAbortedError'>, 'ConnectionRefusedError': <class 'ConnectionRefusedError'>, 'ConnectionResetError': <class 'ConnectionResetError'>, 'TabError': <class 'TabError'>, 'UnicodeDecodeError': <class 'UnicodeDecodeError'>, 'UnicodeEncodeError': <class 'UnicodeEncodeError'>, 'UnicodeTranslateError': <class 'UnicodeTranslateError'>, 'ExceptionGroup': <class 'ExceptionGroup'>, 'EnvironmentError': <class 'OSError'>, 'IOError': <class 'OSError'>, 'open': <built-in function open>, 'quit': Use quit() or Ctrl-D (i.e. EOF) to exit, 'exit': Use exit() or Ctrl-D (i.e. EOF) to exit, 'copyright': Copyright (c) 2001-2023 Python Software Foundation.
+                      All Rights Reserved.
+
+                      Copyright (c) 2000 BeOpen.com.
+                      All Rights Reserved.
+
+                      Copyright (c) 1995-2001 Corporation for National Research Initiatives.
+                      All Rights Reserved.
+
+                      Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.
+                      All Rights Reserved., 'credits':     Thanks to CWI, CNRI, BeOpen, Zope Corporation, the Python Software
+                          Foundation, and a cast of thousands for supporting Python
+                          development.  See www.python.org for more information., 'license': Type license() to see the full license text, 'help': Type help() for interactive help, or help(object) for help about object.}}, variable_names=['name_eric', 'name_arnold', 'type_of_pet_dog', 'type_of_pet_cat'], last_constraints=[[Not(1 == type_of_pet_dog)]])
+                    json_provided: false
+                    json: null
+                  snippet:
+                    short: |-
+                      constraints = [
+                          z3.Ult(name_eric, name_arnold)
+                      ]
+                    long: "'constraints = [\\n    z3.Ult(name_eric, name_arnold)\\n]'"
+                    json_provided: true
+                    json: |-
+                      constraints = [
+                          z3.Ult(name_eric, name_arnold)
+                      ]
+                  is_last:
+                    short: "False"
+                    long: "False"
+                    json_provided: true
+                    json: false
+                tags: [check_and_add_constraints]
+                node_id: 3
+          actions:
+            - ref:
+                with_ids: $2{%4}
+                with_hints: null
+              hints: null
+              related_success_nodes: [4]
+              related_answers: []
+              value:
+                short: |-
+                  constraint_execution_error
+
+                  {'error': "AttributeError\nmodule 'z3' has no attribute 'Ult'",
+                   'snippet': 'constraints = [\n    z3.Ult(name_eric, name_arnold)\n]'}
+                long: |-
+                  Error(label='constraint_execution_error',
+                        description=None,
+                        meta={'error': "AttributeError\nmodule 'z3' has no attribute 'Ult'",
+                              'snippet': 'constraints = [\n    z3.Ult(name_eric, name_arnold)\n]'})
+                json_provided: true
+                json:
+                  label: constraint_execution_error
+                  meta:
+                    error: |-
+                      AttributeError
+                      module 'z3' has no attribute 'Ult'
+                    snippet: |-
+                      constraints = [
+                          z3.Ult(name_eric, name_arnold)
+                      ]
+              destination: 5
+          origin: [child, 1, 0]
+        "3":
+          kind: Compute
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: null
+          tags: []
+          properties:
+            - - with_ids: query
+                with_hints: null
+              - 3
+              - kind: query
+                name: __Computation__
+                args:
+                  fun: smt_call
+                  args:
+                    snippet: |-
+                      constraints = [
+                          z3.Ult(name_eric, name_arnold)
+                      ]
+                tags: [__Computation__]
+                answers:
+                  - id: 2
+                    hint: null
+                    value:
+                      short: __error__:AttributeError:module 'z3' has no attribute 'Ult'
+                      long: "\"__error__:AttributeError:module 'z3' has no attribute 'Ult'\""
+                      json_provided: true
+                      json: __error__:AttributeError:module 'z3' has no attribute 'Ult'
+          actions:
+            - ref:
+                with_ids: $3{@2}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [2]
+              value:
+                short: __error__:AttributeError:module 'z3' has no attribute 'Ult'
+                long: "\"__error__:AttributeError:module 'z3' has no attribute 'Ult'\""
+                json_provided: true
+                json: __error__:AttributeError:module 'z3' has no attribute 'Ult'
+              destination: 4
+          origin: [nested, 2, 0]
+        "4":
+          kind: Success
+          success_value:
+            short: |-
+              constraint_execution_error
+
+              {'error': "AttributeError\nmodule 'z3' has no attribute 'Ult'",
+               'snippet': 'constraints = [\n    z3.Ult(name_eric, name_arnold)\n]'}
+            long: |-
+              Error(label='constraint_execution_error',
+                    description=None,
+                    meta={'error': "AttributeError\nmodule 'z3' has no attribute 'Ult'",
+                          'snippet': 'constraints = [\n    z3.Ult(name_eric, name_arnold)\n]'})
+            json_provided: true
+            json:
+              label: constraint_execution_error
+              meta:
+                error: |-
+                  AttributeError
+                  module 'z3' has no attribute 'Ult'
+                snippet: |-
+                  constraints = [
+                      z3.Ult(name_eric, name_arnold)
+                  ]
+          summary_message: null
+          leaf_node: true
+          label: null
+          tags: []
+          properties: []
+          actions: []
+          origin: [child, 3, 0]
+        "5":
+          kind: Branch
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: FormalizeClue
+          tags: [FormalizeClue]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 4
+              - kind: query
+                name: FormalizeClue
+                args:
+                  context: |-
+                    There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each
+                    house is occupied by a different person. Each house has a unique attribute for each of the    
+                    following characteristics:
+                    - Each person has a unique name: `Eric`, `Arnold`
+                    - Each person has a unique type of pet: `dog`, `cat`
+                  clue: Eric is somewhere to the left of Arnold.
+                  previous_snippets: []
+                  variable_names:
+                    - name_eric
+                    - name_arnold
+                    - type_of_pet_dog
+                    - type_of_pet_cat
+                  step: 0
+                  prefix:
+                    - kind: oracle
+                      answer:
+                        mode: null
+                        content: |-
+                          ```
+                          constraints = [
+                              z3.Ult(name_eric, name_arnold)
+                          ]
+                          ```
+                        tool_calls: []
+                        justification: null
+                    - kind: feedback
+                      label: constraint_execution_error
+                      description: null
+                      meta:
+                        error: |-
+                          AttributeError
+                          module 'z3' has no attribute 'Ult'
+                        snippet: |-
+                          constraints = [
+                              z3.Ult(name_eric, name_arnold)
+                          ]
+                tags: [FormalizeClue]
+                answers:
+                  - id: 3
+                    hint: null
+                    value:
+                      short: Response(answer=Answer(mode=None, content='```\nconstraints = [\n    name_eric < name_arnold\n]\n```', tool_calls=(), justification=None), parsed=FinalAnswer(final='constraints = [\n    name_eric < name_arnold\n]'))
+                      long: |-
+                        Response(answer=Answer(mode=None,
+                                               content='```\n'
+                                                       'constraints = [\n'
+                                                       '    name_eric < name_arnold\n'
+                                                       ']\n'
+                                                       '```',
+                                               tool_calls=(),
+                                               justification=None),
+                                 parsed=FinalAnswer(final='constraints = [\n'
+                                                          '    name_eric < name_arnold\n'
+                                                          ']'))
+                      json_provided: false
+                      json: null
+          actions:
+            - ref:
+                with_ids: $4{@3}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [3]
+              value:
+                short: Response(answer=Answer(mode=None, content='```\nconstraints = [\n    name_eric < name_arnold\n]\n```', tool_calls=(), justification=None), parsed=FinalAnswer(final='constraints = [\n    name_eric < name_arnold\n]'))
+                long: |-
+                  Response(answer=Answer(mode=None,
+                                         content='```\n'
+                                                 'constraints = [\n'
+                                                 '    name_eric < name_arnold\n'
+                                                 ']\n'
+                                                 '```',
+                                         tool_calls=(),
+                                         justification=None),
+                           parsed=FinalAnswer(final='constraints = [\n'
+                                                    '    name_eric < name_arnold\n'
+                                                    ']'))
+                json_provided: false
+                json: null
+              destination: 6
+          origin: [child, 2, 0]
+        "6":
+          kind: Run
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: check_and_add_constraints
+          tags: [check_and_add_constraints]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 5
+              - kind: nested
+                strategy: check_and_add_constraints
+                args:
+                  state:
+                    short: |-
+                      SolverState(solver=[name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       name_eric < name_arnold], z3vars_for_attr={'name': {'Eric': name_eric, 'Arnold': name_arnold}, 'type_of_pet': {'dog': type_of_pet_dog, 'cat': type_of_pet_cat}}, exec_global_vars={'num_houses': 2, 'solver': [name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       name_eric < name_arnold], 'z3': <module 'z3' from '/home/oguz/miniconda3/envs/delphyne/lib/python3.12/site-packages/z3/__init__.py'>, 'name_eric': name_eric, 'name_arnold': name_arnold, 'type_of_pet_dog': type_of_pet_dog, 'type_of_pet_cat': type_of_pet_cat, '__builtins__': {'__name__': 'builtins', '__doc__': "Built-in functions, types, exceptions, and other objects.\n\nThis module provides direct access to all 'built-in'\nidentifiers of Python; for example, builtins.len is\nthe full name for the built-in function len().\n\nThis module is not normally accessed explicitly by most\napplications, but can be useful in modules that provide\nobjects with the same name as a built-in value, but in\nwhich the built-in of that name is also needed.", '__package__': '', '__loader__': <class '_frozen_importlib.BuiltinImporter'>, '__spec__': ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>, origin='built-in'), '__build_class__': <built-in function __build_class__>, '__import__': <built-in function __import__>, 'abs': <built-in function abs>, 'all': <built-in function all>, 'any': <built-in function any>, 'ascii': <built-in function ascii>, 'bin': <built-in function bin>, 'breakpoint': <built-in function breakpoint>, 'callable': <built-in function callable>, 'chr': <built-in function chr>, 'compile': <built-in function compile>, 'delattr': <built-in function delattr>, 'dir': <built-in function dir>, 'divmod': <built-in function divmod>, 'eval': <built-in function eval>, 'exec': <built-in function exec>, 'format': <built-in function format>, 'getattr': <built-in function getattr>, 'globals': <built-in function globals>, 'hasattr': <built-in function hasattr>, 'hash': <built-in function hash>, 'hex': <built-in function hex>, 'id': <built-in function id>, 'input': <built-in function input>, 'isinstance': <built-in function isinstance>, 'issubclass': <built-in function issubclass>, 'iter': <built-in function iter>, 'aiter': <built-in function aiter>, 'len': <built-in function len>, 'locals': <built-in function locals>, 'max': <built-in function max>, 'min': <built-in function min>, 'next': <built-in function next>, 'anext': <built-in function anext>, 'oct': <built-in function oct>, 'ord': <built-in function ord>, 'pow': <built-in function pow>, 'print': <built-in function print>, 'repr': <built-in function repr>, 'round': <built-in function round>, 'setattr': <built-in function setattr>, 'sorted': <built-in function sorted>, 'sum': <built-in function sum>, 'vars': <built-in function vars>, 'None': None, 'Ellipsis': Ellipsis, 'NotImplemented': NotImplemented, 'False': False, 'True': True, 'bool': <class 'bool'>, 'memoryview': <class 'memoryview'>, 'bytearray': <class 'bytearray'>, 'bytes': <class 'bytes'>, 'classmethod': <class 'classmethod'>, 'complex': <class 'complex'>, 'dict': <class 'dict'>, 'enumerate': <class 'enumerate'>, 'filter': <class 'filter'>, 'float': <class 'float'>, 'frozenset': <class 'frozenset'>, 'property': <class 'property'>, 'int': <class 'int'>, 'list': <class 'list'>, 'map': <class 'map'>, 'object': <class 'object'>, 'range': <class 'range'>, 'reversed': <class 'reversed'>, 'set': <class 'set'>, 'slice': <class 'slice'>, 'staticmethod': <class 'staticmethod'>, 'str': <class 'str'>, 'super': <class 'super'>, 'tuple': <class 'tuple'>, 'type': <class 'type'>, 'zip': <class 'zip'>, '__debug__': True, 'BaseException': <class 'BaseException'>, 'BaseExceptionGroup': <class 'BaseExceptionGroup'>, 'Exception': <class 'Exception'>, 'GeneratorExit': <class 'GeneratorExit'>, 'KeyboardInterrupt': <class 'KeyboardInterrupt'>, 'SystemExit': <class 'SystemExit'>, 'ArithmeticError': <class 'ArithmeticError'>, 'AssertionError': <class 'AssertionError'>, 'AttributeError': <class 'AttributeError'>, 'BufferError': <class 'BufferError'>, 'EOFError': <class 'EOFError'>, 'ImportError': <class 'ImportError'>, 'LookupError': <class 'LookupError'>, 'MemoryError': <class 'MemoryError'>, 'NameError': <class 'NameError'>, 'OSError': <class 'OSError'>, 'ReferenceError': <class 'ReferenceError'>, 'RuntimeError': <class 'RuntimeError'>, 'StopAsyncIteration': <class 'StopAsyncIteration'>, 'StopIteration': <class 'StopIteration'>, 'SyntaxError': <class 'SyntaxError'>, 'SystemError': <class 'SystemError'>, 'TypeError': <class 'TypeError'>, 'ValueError': <class 'ValueError'>, 'Warning': <class 'Warning'>, 'FloatingPointError': <class 'FloatingPointError'>, 'OverflowError': <class 'OverflowError'>, 'ZeroDivisionError': <class 'ZeroDivisionError'>, 'BytesWarning': <class 'BytesWarning'>, 'DeprecationWarning': <class 'DeprecationWarning'>, 'EncodingWarning': <class 'EncodingWarning'>, 'FutureWarning': <class 'FutureWarning'>, 'ImportWarning': <class 'ImportWarning'>, 'PendingDeprecationWarning': <class 'PendingDeprecationWarning'>, 'ResourceWarning': <class 'ResourceWarning'>, 'RuntimeWarning': <class 'RuntimeWarning'>, 'SyntaxWarning': <class 'SyntaxWarning'>, 'UnicodeWarning': <class 'UnicodeWarning'>, 'UserWarning': <class 'UserWarning'>, 'BlockingIOError': <class 'BlockingIOError'>, 'ChildProcessError': <class 'ChildProcessError'>, 'ConnectionError': <class 'ConnectionError'>, 'FileExistsError': <class 'FileExistsError'>, 'FileNotFoundError': <class 'FileNotFoundError'>, 'InterruptedError': <class 'InterruptedError'>, 'IsADirectoryError': <class 'IsADirectoryError'>, 'NotADirectoryError': <class 'NotADirectoryError'>, 'PermissionError': <class 'PermissionError'>, 'ProcessLookupError': <class 'ProcessLookupError'>, 'TimeoutError': <class 'TimeoutError'>, 'IndentationError': <class 'IndentationError'>, 'IndexError': <class 'IndexError'>, 'KeyError': <class 'KeyError'>, 'ModuleNotFoundError': <class 'ModuleNotFoundError'>, 'NotImplementedError': <class 'NotImplementedError'>, 'RecursionError': <class 'RecursionError'>, 'UnboundLocalError': <class 'UnboundLocalError'>, 'UnicodeError': <class 'UnicodeError'>, 'BrokenPipeError': <class 'BrokenPipeError'>, 'ConnectionAbortedError': <class 'ConnectionAbortedError'>, 'ConnectionRefusedError': <class 'ConnectionRefusedError'>, 'ConnectionResetError': <class 'ConnectionResetError'>, 'TabError': <class 'TabError'>, 'UnicodeDecodeError': <class 'UnicodeDecodeError'>, 'UnicodeEncodeError': <class 'UnicodeEncodeError'>, 'UnicodeTranslateError': <class 'UnicodeTranslateError'>, 'ExceptionGroup': <class 'ExceptionGroup'>, 'EnvironmentError': <class 'OSError'>, 'IOError': <class 'OSError'>, 'open': <built-in function open>, 'quit': Use quit() or Ctrl-D (i.e. EOF) to exit, 'exit': Use exit() or Ctrl-D (i.e. EOF) to exit, 'copyright': Copyright (c) 2001-2023 Python Software Foundation.
+                      All Rights Reserved.
+
+                      Copyright (c) 2000 BeOpen.com.
+                      All Rights Reserved.
+
+                      Copyright (c) 1995-2001 Corporation for National Research Initiatives.
+                      All Rights Reserved.
+
+                      Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.
+                      All Rights Reserved., 'credits':     Thanks to CWI, CNRI, BeOpen, Zope Corporation, the Python Software
+                          Foundation, and a cast of thousands for supporting Python
+                          development.  See www.python.org for more information., 'license': Type license() to see the full license text, 'help': Type help() for interactive help, or help(object) for help about object.}}, variable_names=['name_eric', 'name_arnold', 'type_of_pet_dog', 'type_of_pet_cat'], last_constraints=[[Not(1 == type_of_pet_dog)]])
+                    long: |-
+                      SolverState(solver=[name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       name_eric < name_arnold], z3vars_for_attr={'name': {'Eric': name_eric, 'Arnold': name_arnold}, 'type_of_pet': {'dog': type_of_pet_dog, 'cat': type_of_pet_cat}}, exec_global_vars={'num_houses': 2, 'solver': [name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       name_eric < name_arnold], 'z3': <module 'z3' from '/home/oguz/miniconda3/envs/delphyne/lib/python3.12/site-packages/z3/__init__.py'>, 'name_eric': name_eric, 'name_arnold': name_arnold, 'type_of_pet_dog': type_of_pet_dog, 'type_of_pet_cat': type_of_pet_cat, '__builtins__': {'__name__': 'builtins', '__doc__': "Built-in functions, types, exceptions, and other objects.\n\nThis module provides direct access to all 'built-in'\nidentifiers of Python; for example, builtins.len is\nthe full name for the built-in function len().\n\nThis module is not normally accessed explicitly by most\napplications, but can be useful in modules that provide\nobjects with the same name as a built-in value, but in\nwhich the built-in of that name is also needed.", '__package__': '', '__loader__': <class '_frozen_importlib.BuiltinImporter'>, '__spec__': ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>, origin='built-in'), '__build_class__': <built-in function __build_class__>, '__import__': <built-in function __import__>, 'abs': <built-in function abs>, 'all': <built-in function all>, 'any': <built-in function any>, 'ascii': <built-in function ascii>, 'bin': <built-in function bin>, 'breakpoint': <built-in function breakpoint>, 'callable': <built-in function callable>, 'chr': <built-in function chr>, 'compile': <built-in function compile>, 'delattr': <built-in function delattr>, 'dir': <built-in function dir>, 'divmod': <built-in function divmod>, 'eval': <built-in function eval>, 'exec': <built-in function exec>, 'format': <built-in function format>, 'getattr': <built-in function getattr>, 'globals': <built-in function globals>, 'hasattr': <built-in function hasattr>, 'hash': <built-in function hash>, 'hex': <built-in function hex>, 'id': <built-in function id>, 'input': <built-in function input>, 'isinstance': <built-in function isinstance>, 'issubclass': <built-in function issubclass>, 'iter': <built-in function iter>, 'aiter': <built-in function aiter>, 'len': <built-in function len>, 'locals': <built-in function locals>, 'max': <built-in function max>, 'min': <built-in function min>, 'next': <built-in function next>, 'anext': <built-in function anext>, 'oct': <built-in function oct>, 'ord': <built-in function ord>, 'pow': <built-in function pow>, 'print': <built-in function print>, 'repr': <built-in function repr>, 'round': <built-in function round>, 'setattr': <built-in function setattr>, 'sorted': <built-in function sorted>, 'sum': <built-in function sum>, 'vars': <built-in function vars>, 'None': None, 'Ellipsis': Ellipsis, 'NotImplemented': NotImplemented, 'False': False, 'True': True, 'bool': <class 'bool'>, 'memoryview': <class 'memoryview'>, 'bytearray': <class 'bytearray'>, 'bytes': <class 'bytes'>, 'classmethod': <class 'classmethod'>, 'complex': <class 'complex'>, 'dict': <class 'dict'>, 'enumerate': <class 'enumerate'>, 'filter': <class 'filter'>, 'float': <class 'float'>, 'frozenset': <class 'frozenset'>, 'property': <class 'property'>, 'int': <class 'int'>, 'list': <class 'list'>, 'map': <class 'map'>, 'object': <class 'object'>, 'range': <class 'range'>, 'reversed': <class 'reversed'>, 'set': <class 'set'>, 'slice': <class 'slice'>, 'staticmethod': <class 'staticmethod'>, 'str': <class 'str'>, 'super': <class 'super'>, 'tuple': <class 'tuple'>, 'type': <class 'type'>, 'zip': <class 'zip'>, '__debug__': True, 'BaseException': <class 'BaseException'>, 'BaseExceptionGroup': <class 'BaseExceptionGroup'>, 'Exception': <class 'Exception'>, 'GeneratorExit': <class 'GeneratorExit'>, 'KeyboardInterrupt': <class 'KeyboardInterrupt'>, 'SystemExit': <class 'SystemExit'>, 'ArithmeticError': <class 'ArithmeticError'>, 'AssertionError': <class 'AssertionError'>, 'AttributeError': <class 'AttributeError'>, 'BufferError': <class 'BufferError'>, 'EOFError': <class 'EOFError'>, 'ImportError': <class 'ImportError'>, 'LookupError': <class 'LookupError'>, 'MemoryError': <class 'MemoryError'>, 'NameError': <class 'NameError'>, 'OSError': <class 'OSError'>, 'ReferenceError': <class 'ReferenceError'>, 'RuntimeError': <class 'RuntimeError'>, 'StopAsyncIteration': <class 'StopAsyncIteration'>, 'StopIteration': <class 'StopIteration'>, 'SyntaxError': <class 'SyntaxError'>, 'SystemError': <class 'SystemError'>, 'TypeError': <class 'TypeError'>, 'ValueError': <class 'ValueError'>, 'Warning': <class 'Warning'>, 'FloatingPointError': <class 'FloatingPointError'>, 'OverflowError': <class 'OverflowError'>, 'ZeroDivisionError': <class 'ZeroDivisionError'>, 'BytesWarning': <class 'BytesWarning'>, 'DeprecationWarning': <class 'DeprecationWarning'>, 'EncodingWarning': <class 'EncodingWarning'>, 'FutureWarning': <class 'FutureWarning'>, 'ImportWarning': <class 'ImportWarning'>, 'PendingDeprecationWarning': <class 'PendingDeprecationWarning'>, 'ResourceWarning': <class 'ResourceWarning'>, 'RuntimeWarning': <class 'RuntimeWarning'>, 'SyntaxWarning': <class 'SyntaxWarning'>, 'UnicodeWarning': <class 'UnicodeWarning'>, 'UserWarning': <class 'UserWarning'>, 'BlockingIOError': <class 'BlockingIOError'>, 'ChildProcessError': <class 'ChildProcessError'>, 'ConnectionError': <class 'ConnectionError'>, 'FileExistsError': <class 'FileExistsError'>, 'FileNotFoundError': <class 'FileNotFoundError'>, 'InterruptedError': <class 'InterruptedError'>, 'IsADirectoryError': <class 'IsADirectoryError'>, 'NotADirectoryError': <class 'NotADirectoryError'>, 'PermissionError': <class 'PermissionError'>, 'ProcessLookupError': <class 'ProcessLookupError'>, 'TimeoutError': <class 'TimeoutError'>, 'IndentationError': <class 'IndentationError'>, 'IndexError': <class 'IndexError'>, 'KeyError': <class 'KeyError'>, 'ModuleNotFoundError': <class 'ModuleNotFoundError'>, 'NotImplementedError': <class 'NotImplementedError'>, 'RecursionError': <class 'RecursionError'>, 'UnboundLocalError': <class 'UnboundLocalError'>, 'UnicodeError': <class 'UnicodeError'>, 'BrokenPipeError': <class 'BrokenPipeError'>, 'ConnectionAbortedError': <class 'ConnectionAbortedError'>, 'ConnectionRefusedError': <class 'ConnectionRefusedError'>, 'ConnectionResetError': <class 'ConnectionResetError'>, 'TabError': <class 'TabError'>, 'UnicodeDecodeError': <class 'UnicodeDecodeError'>, 'UnicodeEncodeError': <class 'UnicodeEncodeError'>, 'UnicodeTranslateError': <class 'UnicodeTranslateError'>, 'ExceptionGroup': <class 'ExceptionGroup'>, 'EnvironmentError': <class 'OSError'>, 'IOError': <class 'OSError'>, 'open': <built-in function open>, 'quit': Use quit() or Ctrl-D (i.e. EOF) to exit, 'exit': Use exit() or Ctrl-D (i.e. EOF) to exit, 'copyright': Copyright (c) 2001-2023 Python Software Foundation.
+                      All Rights Reserved.
+
+                      Copyright (c) 2000 BeOpen.com.
+                      All Rights Reserved.
+
+                      Copyright (c) 1995-2001 Corporation for National Research Initiatives.
+                      All Rights Reserved.
+
+                      Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.
+                      All Rights Reserved., 'credits':     Thanks to CWI, CNRI, BeOpen, Zope Corporation, the Python Software
+                          Foundation, and a cast of thousands for supporting Python
+                          development.  See www.python.org for more information., 'license': Type license() to see the full license text, 'help': Type help() for interactive help, or help(object) for help about object.}}, variable_names=['name_eric', 'name_arnold', 'type_of_pet_dog', 'type_of_pet_cat'], last_constraints=[[Not(1 == type_of_pet_dog)]])
+                    json_provided: false
+                    json: null
+                  snippet:
+                    short: |-
+                      constraints = [
+                          name_eric < name_arnold
+                      ]
+                    long: "'constraints = [\\n    name_eric < name_arnold\\n]'"
+                    json_provided: true
+                    json: |-
+                      constraints = [
+                          name_eric < name_arnold
+                      ]
+                  is_last:
+                    short: "False"
+                    long: "False"
+                    json_provided: true
+                    json: false
+                tags: [check_and_add_constraints]
+                node_id: 7
+          actions:
+            - ref:
+                with_ids: $5{%8}
+                with_hints: null
+              hints: null
+              related_success_nodes: [8]
+              related_answers: []
               value:
                 short: |-
                   constraints = [
@@ -327,9 +951,72 @@ outcome:
                   constraints = [
                       name_eric < name_arnold
                   ]
-              destination: 2
-          origin: root
-        "2":
+              destination: 9
+          origin: [child, 5, 0]
+        "7":
+          kind: Compute
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: null
+          tags: []
+          properties:
+            - - with_ids: query
+                with_hints: null
+              - 6
+              - kind: query
+                name: __Computation__
+                args:
+                  fun: smt_call
+                  args:
+                    snippet: |-
+                      constraints = [
+                          name_eric < name_arnold
+                      ]
+                tags: [__Computation__]
+                answers:
+                  - id: 4
+                    hint: null
+                    value:
+                      short: sat
+                      long: "'sat'"
+                      json_provided: true
+                      json: sat
+          actions:
+            - ref:
+                with_ids: $6{@4}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [4]
+              value:
+                short: sat
+                long: "'sat'"
+                json_provided: true
+                json: sat
+              destination: 8
+          origin: [nested, 6, 0]
+        "8":
+          kind: Success
+          success_value:
+            short: |-
+              constraints = [
+                  name_eric < name_arnold
+              ]
+            long: "'constraints = [\\n    name_eric < name_arnold\\n]'"
+            json_provided: true
+            json: |-
+              constraints = [
+                  name_eric < name_arnold
+              ]
+          summary_message: null
+          leaf_node: true
+          label: null
+          tags: []
+          properties: []
+          actions: []
+          origin: [child, 7, 0]
+        "9":
           kind: Branch
           success_value: null
           summary_message: null
@@ -339,7 +1026,7 @@ outcome:
           properties:
             - - with_ids: cands
                 with_hints: null
-              - 2
+              - 7
               - kind: query
                 name: FormalizeClue
                 args:
@@ -361,42 +1048,249 @@ outcome:
                     - type_of_pet_dog
                     - type_of_pet_cat
                   step: 1
+                  prefix: []
                 tags: [FormalizeClue]
                 answers:
-                  - id: 2
+                  - id: 5
                     hint: null
                     value:
-                      short: |-
-                        constraints = [
-                            z3.Not(type_of_pet_dog == 1)
-                        ]
-                      long: "'constraints = [\\n    z3.Not(type_of_pet_dog == 1)\\n]'"
-                      json_provided: true
-                      json: |-
-                        constraints = [
-                            z3.Not(type_of_pet_dog == 1)
-                        ]
+                      short: Response(answer=Answer(mode=None, content='```python\nconstraints = [\n    z3.Not(type_of_pet_dog == z3.IntVal(1))\n]\n```', tool_calls=(), justification=None), parsed=FinalAnswer(final='constraints = [\n    z3.Not(type_of_pet_dog == z3.IntVal(1))\n]'))
+                      long: |-
+                        Response(answer=Answer(mode=None,
+                                               content='```python\n'
+                                                       'constraints = [\n'
+                                                       '    z3.Not(type_of_pet_dog == z3.IntVal(1))\n'
+                                                       ']\n'
+                                                       '```',
+                                               tool_calls=(),
+                                               justification=None),
+                                 parsed=FinalAnswer(final='constraints = [\n'
+                                                          '    z3.Not(type_of_pet_dog == '
+                                                          'z3.IntVal(1))\n'
+                                                          ']'))
+                      json_provided: false
+                      json: null
           actions:
             - ref:
-                with_ids: $2{@2}
+                with_ids: $7{@5}
                 with_hints: null
               hints: null
               related_success_nodes: []
-              related_answers: [2]
+              related_answers: [5]
+              value:
+                short: Response(answer=Answer(mode=None, content='```python\nconstraints = [\n    z3.Not(type_of_pet_dog == z3.IntVal(1))\n]\n```', tool_calls=(), justification=None), parsed=FinalAnswer(final='constraints = [\n    z3.Not(type_of_pet_dog == z3.IntVal(1))\n]'))
+                long: |-
+                  Response(answer=Answer(mode=None,
+                                         content='```python\n'
+                                                 'constraints = [\n'
+                                                 '    z3.Not(type_of_pet_dog == z3.IntVal(1))\n'
+                                                 ']\n'
+                                                 '```',
+                                         tool_calls=(),
+                                         justification=None),
+                           parsed=FinalAnswer(final='constraints = [\n'
+                                                    '    z3.Not(type_of_pet_dog == '
+                                                    'z3.IntVal(1))\n'
+                                                    ']'))
+                json_provided: false
+                json: null
+              destination: 10
+          origin: [child, 6, 0]
+        "10":
+          kind: Run
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: check_and_add_constraints
+          tags: [check_and_add_constraints]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 8
+              - kind: nested
+                strategy: check_and_add_constraints
+                args:
+                  state:
+                    short: |-
+                      SolverState(solver=[name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       Not(1 == type_of_pet_dog)], z3vars_for_attr={'name': {'Eric': name_eric, 'Arnold': name_arnold}, 'type_of_pet': {'dog': type_of_pet_dog, 'cat': type_of_pet_cat}}, exec_global_vars={'num_houses': 2, 'solver': [name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       Not(1 == type_of_pet_dog)], 'z3': <module 'z3' from '/home/oguz/miniconda3/envs/delphyne/lib/python3.12/site-packages/z3/__init__.py'>, 'name_eric': name_eric, 'name_arnold': name_arnold, 'type_of_pet_dog': type_of_pet_dog, 'type_of_pet_cat': type_of_pet_cat, '__builtins__': {'__name__': 'builtins', '__doc__': "Built-in functions, types, exceptions, and other objects.\n\nThis module provides direct access to all 'built-in'\nidentifiers of Python; for example, builtins.len is\nthe full name for the built-in function len().\n\nThis module is not normally accessed explicitly by most\napplications, but can be useful in modules that provide\nobjects with the same name as a built-in value, but in\nwhich the built-in of that name is also needed.", '__package__': '', '__loader__': <class '_frozen_importlib.BuiltinImporter'>, '__spec__': ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>, origin='built-in'), '__build_class__': <built-in function __build_class__>, '__import__': <built-in function __import__>, 'abs': <built-in function abs>, 'all': <built-in function all>, 'any': <built-in function any>, 'ascii': <built-in function ascii>, 'bin': <built-in function bin>, 'breakpoint': <built-in function breakpoint>, 'callable': <built-in function callable>, 'chr': <built-in function chr>, 'compile': <built-in function compile>, 'delattr': <built-in function delattr>, 'dir': <built-in function dir>, 'divmod': <built-in function divmod>, 'eval': <built-in function eval>, 'exec': <built-in function exec>, 'format': <built-in function format>, 'getattr': <built-in function getattr>, 'globals': <built-in function globals>, 'hasattr': <built-in function hasattr>, 'hash': <built-in function hash>, 'hex': <built-in function hex>, 'id': <built-in function id>, 'input': <built-in function input>, 'isinstance': <built-in function isinstance>, 'issubclass': <built-in function issubclass>, 'iter': <built-in function iter>, 'aiter': <built-in function aiter>, 'len': <built-in function len>, 'locals': <built-in function locals>, 'max': <built-in function max>, 'min': <built-in function min>, 'next': <built-in function next>, 'anext': <built-in function anext>, 'oct': <built-in function oct>, 'ord': <built-in function ord>, 'pow': <built-in function pow>, 'print': <built-in function print>, 'repr': <built-in function repr>, 'round': <built-in function round>, 'setattr': <built-in function setattr>, 'sorted': <built-in function sorted>, 'sum': <built-in function sum>, 'vars': <built-in function vars>, 'None': None, 'Ellipsis': Ellipsis, 'NotImplemented': NotImplemented, 'False': False, 'True': True, 'bool': <class 'bool'>, 'memoryview': <class 'memoryview'>, 'bytearray': <class 'bytearray'>, 'bytes': <class 'bytes'>, 'classmethod': <class 'classmethod'>, 'complex': <class 'complex'>, 'dict': <class 'dict'>, 'enumerate': <class 'enumerate'>, 'filter': <class 'filter'>, 'float': <class 'float'>, 'frozenset': <class 'frozenset'>, 'property': <class 'property'>, 'int': <class 'int'>, 'list': <class 'list'>, 'map': <class 'map'>, 'object': <class 'object'>, 'range': <class 'range'>, 'reversed': <class 'reversed'>, 'set': <class 'set'>, 'slice': <class 'slice'>, 'staticmethod': <class 'staticmethod'>, 'str': <class 'str'>, 'super': <class 'super'>, 'tuple': <class 'tuple'>, 'type': <class 'type'>, 'zip': <class 'zip'>, '__debug__': True, 'BaseException': <class 'BaseException'>, 'BaseExceptionGroup': <class 'BaseExceptionGroup'>, 'Exception': <class 'Exception'>, 'GeneratorExit': <class 'GeneratorExit'>, 'KeyboardInterrupt': <class 'KeyboardInterrupt'>, 'SystemExit': <class 'SystemExit'>, 'ArithmeticError': <class 'ArithmeticError'>, 'AssertionError': <class 'AssertionError'>, 'AttributeError': <class 'AttributeError'>, 'BufferError': <class 'BufferError'>, 'EOFError': <class 'EOFError'>, 'ImportError': <class 'ImportError'>, 'LookupError': <class 'LookupError'>, 'MemoryError': <class 'MemoryError'>, 'NameError': <class 'NameError'>, 'OSError': <class 'OSError'>, 'ReferenceError': <class 'ReferenceError'>, 'RuntimeError': <class 'RuntimeError'>, 'StopAsyncIteration': <class 'StopAsyncIteration'>, 'StopIteration': <class 'StopIteration'>, 'SyntaxError': <class 'SyntaxError'>, 'SystemError': <class 'SystemError'>, 'TypeError': <class 'TypeError'>, 'ValueError': <class 'ValueError'>, 'Warning': <class 'Warning'>, 'FloatingPointError': <class 'FloatingPointError'>, 'OverflowError': <class 'OverflowError'>, 'ZeroDivisionError': <class 'ZeroDivisionError'>, 'BytesWarning': <class 'BytesWarning'>, 'DeprecationWarning': <class 'DeprecationWarning'>, 'EncodingWarning': <class 'EncodingWarning'>, 'FutureWarning': <class 'FutureWarning'>, 'ImportWarning': <class 'ImportWarning'>, 'PendingDeprecationWarning': <class 'PendingDeprecationWarning'>, 'ResourceWarning': <class 'ResourceWarning'>, 'RuntimeWarning': <class 'RuntimeWarning'>, 'SyntaxWarning': <class 'SyntaxWarning'>, 'UnicodeWarning': <class 'UnicodeWarning'>, 'UserWarning': <class 'UserWarning'>, 'BlockingIOError': <class 'BlockingIOError'>, 'ChildProcessError': <class 'ChildProcessError'>, 'ConnectionError': <class 'ConnectionError'>, 'FileExistsError': <class 'FileExistsError'>, 'FileNotFoundError': <class 'FileNotFoundError'>, 'InterruptedError': <class 'InterruptedError'>, 'IsADirectoryError': <class 'IsADirectoryError'>, 'NotADirectoryError': <class 'NotADirectoryError'>, 'PermissionError': <class 'PermissionError'>, 'ProcessLookupError': <class 'ProcessLookupError'>, 'TimeoutError': <class 'TimeoutError'>, 'IndentationError': <class 'IndentationError'>, 'IndexError': <class 'IndexError'>, 'KeyError': <class 'KeyError'>, 'ModuleNotFoundError': <class 'ModuleNotFoundError'>, 'NotImplementedError': <class 'NotImplementedError'>, 'RecursionError': <class 'RecursionError'>, 'UnboundLocalError': <class 'UnboundLocalError'>, 'UnicodeError': <class 'UnicodeError'>, 'BrokenPipeError': <class 'BrokenPipeError'>, 'ConnectionAbortedError': <class 'ConnectionAbortedError'>, 'ConnectionRefusedError': <class 'ConnectionRefusedError'>, 'ConnectionResetError': <class 'ConnectionResetError'>, 'TabError': <class 'TabError'>, 'UnicodeDecodeError': <class 'UnicodeDecodeError'>, 'UnicodeEncodeError': <class 'UnicodeEncodeError'>, 'UnicodeTranslateError': <class 'UnicodeTranslateError'>, 'ExceptionGroup': <class 'ExceptionGroup'>, 'EnvironmentError': <class 'OSError'>, 'IOError': <class 'OSError'>, 'open': <built-in function open>, 'quit': Use quit() or Ctrl-D (i.e. EOF) to exit, 'exit': Use exit() or Ctrl-D (i.e. EOF) to exit, 'copyright': Copyright (c) 2001-2023 Python Software Foundation.
+                      All Rights Reserved.
+
+                      Copyright (c) 2000 BeOpen.com.
+                      All Rights Reserved.
+
+                      Copyright (c) 1995-2001 Corporation for National Research Initiatives.
+                      All Rights Reserved.
+
+                      Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.
+                      All Rights Reserved., 'credits':     Thanks to CWI, CNRI, BeOpen, Zope Corporation, the Python Software
+                          Foundation, and a cast of thousands for supporting Python
+                          development.  See www.python.org for more information., 'license': Type license() to see the full license text, 'help': Type help() for interactive help, or help(object) for help about object.}}, variable_names=['name_eric', 'name_arnold', 'type_of_pet_dog', 'type_of_pet_cat'], last_constraints=[[Not(1 == type_of_pet_dog)]])
+                    long: |-
+                      SolverState(solver=[name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       Not(1 == type_of_pet_dog)], z3vars_for_attr={'name': {'Eric': name_eric, 'Arnold': name_arnold}, 'type_of_pet': {'dog': type_of_pet_dog, 'cat': type_of_pet_cat}}, exec_global_vars={'num_houses': 2, 'solver': [name_eric >= 1,
+                       name_eric <= 2,
+                       Distinct(name_eric),
+                       name_arnold >= 1,
+                       name_arnold <= 2,
+                       name_eric != name_arnold,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       Not(1 == type_of_pet_dog)], 'z3': <module 'z3' from '/home/oguz/miniconda3/envs/delphyne/lib/python3.12/site-packages/z3/__init__.py'>, 'name_eric': name_eric, 'name_arnold': name_arnold, 'type_of_pet_dog': type_of_pet_dog, 'type_of_pet_cat': type_of_pet_cat, '__builtins__': {'__name__': 'builtins', '__doc__': "Built-in functions, types, exceptions, and other objects.\n\nThis module provides direct access to all 'built-in'\nidentifiers of Python; for example, builtins.len is\nthe full name for the built-in function len().\n\nThis module is not normally accessed explicitly by most\napplications, but can be useful in modules that provide\nobjects with the same name as a built-in value, but in\nwhich the built-in of that name is also needed.", '__package__': '', '__loader__': <class '_frozen_importlib.BuiltinImporter'>, '__spec__': ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>, origin='built-in'), '__build_class__': <built-in function __build_class__>, '__import__': <built-in function __import__>, 'abs': <built-in function abs>, 'all': <built-in function all>, 'any': <built-in function any>, 'ascii': <built-in function ascii>, 'bin': <built-in function bin>, 'breakpoint': <built-in function breakpoint>, 'callable': <built-in function callable>, 'chr': <built-in function chr>, 'compile': <built-in function compile>, 'delattr': <built-in function delattr>, 'dir': <built-in function dir>, 'divmod': <built-in function divmod>, 'eval': <built-in function eval>, 'exec': <built-in function exec>, 'format': <built-in function format>, 'getattr': <built-in function getattr>, 'globals': <built-in function globals>, 'hasattr': <built-in function hasattr>, 'hash': <built-in function hash>, 'hex': <built-in function hex>, 'id': <built-in function id>, 'input': <built-in function input>, 'isinstance': <built-in function isinstance>, 'issubclass': <built-in function issubclass>, 'iter': <built-in function iter>, 'aiter': <built-in function aiter>, 'len': <built-in function len>, 'locals': <built-in function locals>, 'max': <built-in function max>, 'min': <built-in function min>, 'next': <built-in function next>, 'anext': <built-in function anext>, 'oct': <built-in function oct>, 'ord': <built-in function ord>, 'pow': <built-in function pow>, 'print': <built-in function print>, 'repr': <built-in function repr>, 'round': <built-in function round>, 'setattr': <built-in function setattr>, 'sorted': <built-in function sorted>, 'sum': <built-in function sum>, 'vars': <built-in function vars>, 'None': None, 'Ellipsis': Ellipsis, 'NotImplemented': NotImplemented, 'False': False, 'True': True, 'bool': <class 'bool'>, 'memoryview': <class 'memoryview'>, 'bytearray': <class 'bytearray'>, 'bytes': <class 'bytes'>, 'classmethod': <class 'classmethod'>, 'complex': <class 'complex'>, 'dict': <class 'dict'>, 'enumerate': <class 'enumerate'>, 'filter': <class 'filter'>, 'float': <class 'float'>, 'frozenset': <class 'frozenset'>, 'property': <class 'property'>, 'int': <class 'int'>, 'list': <class 'list'>, 'map': <class 'map'>, 'object': <class 'object'>, 'range': <class 'range'>, 'reversed': <class 'reversed'>, 'set': <class 'set'>, 'slice': <class 'slice'>, 'staticmethod': <class 'staticmethod'>, 'str': <class 'str'>, 'super': <class 'super'>, 'tuple': <class 'tuple'>, 'type': <class 'type'>, 'zip': <class 'zip'>, '__debug__': True, 'BaseException': <class 'BaseException'>, 'BaseExceptionGroup': <class 'BaseExceptionGroup'>, 'Exception': <class 'Exception'>, 'GeneratorExit': <class 'GeneratorExit'>, 'KeyboardInterrupt': <class 'KeyboardInterrupt'>, 'SystemExit': <class 'SystemExit'>, 'ArithmeticError': <class 'ArithmeticError'>, 'AssertionError': <class 'AssertionError'>, 'AttributeError': <class 'AttributeError'>, 'BufferError': <class 'BufferError'>, 'EOFError': <class 'EOFError'>, 'ImportError': <class 'ImportError'>, 'LookupError': <class 'LookupError'>, 'MemoryError': <class 'MemoryError'>, 'NameError': <class 'NameError'>, 'OSError': <class 'OSError'>, 'ReferenceError': <class 'ReferenceError'>, 'RuntimeError': <class 'RuntimeError'>, 'StopAsyncIteration': <class 'StopAsyncIteration'>, 'StopIteration': <class 'StopIteration'>, 'SyntaxError': <class 'SyntaxError'>, 'SystemError': <class 'SystemError'>, 'TypeError': <class 'TypeError'>, 'ValueError': <class 'ValueError'>, 'Warning': <class 'Warning'>, 'FloatingPointError': <class 'FloatingPointError'>, 'OverflowError': <class 'OverflowError'>, 'ZeroDivisionError': <class 'ZeroDivisionError'>, 'BytesWarning': <class 'BytesWarning'>, 'DeprecationWarning': <class 'DeprecationWarning'>, 'EncodingWarning': <class 'EncodingWarning'>, 'FutureWarning': <class 'FutureWarning'>, 'ImportWarning': <class 'ImportWarning'>, 'PendingDeprecationWarning': <class 'PendingDeprecationWarning'>, 'ResourceWarning': <class 'ResourceWarning'>, 'RuntimeWarning': <class 'RuntimeWarning'>, 'SyntaxWarning': <class 'SyntaxWarning'>, 'UnicodeWarning': <class 'UnicodeWarning'>, 'UserWarning': <class 'UserWarning'>, 'BlockingIOError': <class 'BlockingIOError'>, 'ChildProcessError': <class 'ChildProcessError'>, 'ConnectionError': <class 'ConnectionError'>, 'FileExistsError': <class 'FileExistsError'>, 'FileNotFoundError': <class 'FileNotFoundError'>, 'InterruptedError': <class 'InterruptedError'>, 'IsADirectoryError': <class 'IsADirectoryError'>, 'NotADirectoryError': <class 'NotADirectoryError'>, 'PermissionError': <class 'PermissionError'>, 'ProcessLookupError': <class 'ProcessLookupError'>, 'TimeoutError': <class 'TimeoutError'>, 'IndentationError': <class 'IndentationError'>, 'IndexError': <class 'IndexError'>, 'KeyError': <class 'KeyError'>, 'ModuleNotFoundError': <class 'ModuleNotFoundError'>, 'NotImplementedError': <class 'NotImplementedError'>, 'RecursionError': <class 'RecursionError'>, 'UnboundLocalError': <class 'UnboundLocalError'>, 'UnicodeError': <class 'UnicodeError'>, 'BrokenPipeError': <class 'BrokenPipeError'>, 'ConnectionAbortedError': <class 'ConnectionAbortedError'>, 'ConnectionRefusedError': <class 'ConnectionRefusedError'>, 'ConnectionResetError': <class 'ConnectionResetError'>, 'TabError': <class 'TabError'>, 'UnicodeDecodeError': <class 'UnicodeDecodeError'>, 'UnicodeEncodeError': <class 'UnicodeEncodeError'>, 'UnicodeTranslateError': <class 'UnicodeTranslateError'>, 'ExceptionGroup': <class 'ExceptionGroup'>, 'EnvironmentError': <class 'OSError'>, 'IOError': <class 'OSError'>, 'open': <built-in function open>, 'quit': Use quit() or Ctrl-D (i.e. EOF) to exit, 'exit': Use exit() or Ctrl-D (i.e. EOF) to exit, 'copyright': Copyright (c) 2001-2023 Python Software Foundation.
+                      All Rights Reserved.
+
+                      Copyright (c) 2000 BeOpen.com.
+                      All Rights Reserved.
+
+                      Copyright (c) 1995-2001 Corporation for National Research Initiatives.
+                      All Rights Reserved.
+
+                      Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.
+                      All Rights Reserved., 'credits':     Thanks to CWI, CNRI, BeOpen, Zope Corporation, the Python Software
+                          Foundation, and a cast of thousands for supporting Python
+                          development.  See www.python.org for more information., 'license': Type license() to see the full license text, 'help': Type help() for interactive help, or help(object) for help about object.}}, variable_names=['name_eric', 'name_arnold', 'type_of_pet_dog', 'type_of_pet_cat'], last_constraints=[[Not(1 == type_of_pet_dog)]])
+                    json_provided: false
+                    json: null
+                  snippet:
+                    short: |-
+                      constraints = [
+                          z3.Not(type_of_pet_dog == z3.IntVal(1))
+                      ]
+                    long: "'constraints = [\\n    z3.Not(type_of_pet_dog == z3.IntVal(1))\\n]'"
+                    json_provided: true
+                    json: |-
+                      constraints = [
+                          z3.Not(type_of_pet_dog == z3.IntVal(1))
+                      ]
+                  is_last:
+                    short: "True"
+                    long: "True"
+                    json_provided: true
+                    json: true
+                tags: [check_and_add_constraints]
+                node_id: 11
+          actions:
+            - ref:
+                with_ids: $8{%12}
+                with_hints: null
+              hints: null
+              related_success_nodes: [12]
+              related_answers: []
               value:
                 short: |-
                   constraints = [
-                      z3.Not(type_of_pet_dog == 1)
+                      z3.Not(type_of_pet_dog == z3.IntVal(1))
                   ]
-                long: "'constraints = [\\n    z3.Not(type_of_pet_dog == 1)\\n]'"
+                long: "'constraints = [\\n    z3.Not(type_of_pet_dog == z3.IntVal(1))\\n]'"
                 json_provided: true
                 json: |-
                   constraints = [
-                      z3.Not(type_of_pet_dog == 1)
+                      z3.Not(type_of_pet_dog == z3.IntVal(1))
                   ]
-              destination: 3
-          origin: [child, 1, 0]
-        "3":
+              destination: 13
+          origin: [child, 9, 0]
+        "11":
+          kind: Compute
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: null
+          tags: []
+          properties:
+            - - with_ids: query
+                with_hints: null
+              - 9
+              - kind: query
+                name: __Computation__
+                args:
+                  fun: smt_call
+                  args:
+                    snippet: |-
+                      constraints = [
+                          z3.Not(type_of_pet_dog == z3.IntVal(1))
+                      ]
+                tags: [__Computation__]
+                answers:
+                  - id: 6
+                    hint: null
+                    value:
+                      short: sat
+                      long: "'sat'"
+                      json_provided: true
+                      json: sat
+          actions:
+            - ref:
+                with_ids: $9{@6}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [6]
+              value:
+                short: sat
+                long: "'sat'"
+                json_provided: true
+                json: sat
+              destination: 12
+          origin: [nested, 10, 0]
+        "12":
+          kind: Success
+          success_value:
+            short: |-
+              constraints = [
+                  z3.Not(type_of_pet_dog == z3.IntVal(1))
+              ]
+            long: "'constraints = [\\n    z3.Not(type_of_pet_dog == z3.IntVal(1))\\n]'"
+            json_provided: true
+            json: |-
+              constraints = [
+                  z3.Not(type_of_pet_dog == z3.IntVal(1))
+              ]
+          summary_message: null
+          leaf_node: true
+          label: null
+          tags: []
+          properties: []
+          actions: []
+          origin: [child, 11, 0]
+        "13":
           kind: Success
           success_value:
             short: "[['1', 'Eric', 'cat'], ['2', 'Arnold', 'dog']]"
@@ -411,7 +1305,14 @@ outcome:
           tags: []
           properties: []
           actions: []
-          origin: [child, 2, 0]
+          origin: [child, 10, 0]
       spaces:
         "1": [1, 0]
         "2": [2, 0]
+        "3": [3, 0]
+        "4": [5, 0]
+        "5": [6, 0]
+        "6": [7, 0]
+        "7": [9, 0]
+        "8": [10, 0]
+        "9": [11, 0]

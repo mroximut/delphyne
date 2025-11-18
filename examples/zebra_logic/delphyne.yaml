@@ -1,0 +1,4 @@
+strategy_dirs: ["."]
+prompt_dirs: ["prompts"]
+modules:
+  - "baseline"

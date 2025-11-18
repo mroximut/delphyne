@@ -1,0 +1,16 @@
+{% if feedback.meta and feedback.meta.get('error') and feedback.meta.get('snippet') %}
+
+Tried to execute the following constraint snippet:
+
+"""
+{{ feedback.meta['snippet'] }}
+"""
+
+but encountered the following error:
+
+"""
+{{ feedback.meta['error'] }}
+"""
+
+{% endif %}
+
