@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable, assert_never, cast
 
 import pandas as pd
@@ -17,9 +18,10 @@ from delphyne import Branch, Fail, Strategy, strategy
 # pyright: strict
 # fmt: on
 
-solutions_csv: str = (
-    "/home/oguz/logicode/delphyne/examples/zebra_logic/"
-    "datasets--allenai--ZebraLogicBench-private/zebra_logic_bench_solutions.csv"
+solutions_csv: Path = (
+    Path(__file__).resolve().parent
+    / "datasets--allenai--ZebraLogicBench-private"
+    / "zebra_logic_bench_solutions.csv"
 )
 solutions_df: pd.DataFrame = pd.read_csv(solutions_csv)  # type: ignore
 
