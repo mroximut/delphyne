@@ -1,7 +1,3 @@
-# @config
-# modules: [baseline]
-# @end
-
 - strategy: zebra_baseline
   args: 
     puzzle: | 
@@ -18,12 +14,12 @@
   tests:
     - run | success
   queries: 
-   - query: FormalizeClue 
-     args:
-        context: |
-          There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. 
-          Each house is occupied by a different person. Each house has a unique attribute for each 
-          of the following characteristics:
+    - query: FormalizeClue 
+      args:
+        context: |-
+          There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each
+          house is occupied by a different person. Each house has a unique attribute for each of the    
+          following characteristics:
           - Each person has a unique name: `Eric`, `Arnold`
           - Each person has a unique type of pet: `dog`, `cat`
         clue: Eric is somewhere to the left of Arnold.
@@ -34,40 +30,39 @@
           - type_of_pet_dog
           - type_of_pet_cat
         step: 0
-     answers:
-      - answer: |
-          ```python
-          constraints = [
-            name_eric < name_arnold
-          ]
-          ```
-   - query: FormalizeClue 
-     args:
-      context: |
-        There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each
-        house is occupied by a different person. Each house has a unique attribute for each of the 
-        following characteristics:
-        - Each person has a unique name: `Eric`, `Arnold`
-        - Each person has a unique type of pet: `dog`, `cat`
-      clue: The person who owns a dog is not in the first house.
-      previous_snippets:  
-          - | 
+        prefix: []
+      answers:
+        - answer: |
             ```python
             constraints = [
               name_eric < name_arnold
             ]
             ```
-      variable_names:
-        - name_eric
-        - name_arnold
-        - type_of_pet_dog
-        - type_of_pet_cat
-      step: 1
-     answers:
-      - answer: |
-          ```python
-          constraints = [
-            z3.Not(type_of_pet_dog == 1)
-          ]
-          ```
-        
+    - query: FormalizeClue 
+      args:
+        context: |-
+          There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each
+          house is occupied by a different person. Each house has a unique attribute for each of the    
+          following characteristics:
+          - Each person has a unique name: `Eric`, `Arnold`
+          - Each person has a unique type of pet: `dog`, `cat`
+        clue: The person who owns a dog is not in the first house.
+        previous_snippets:
+          - |-
+            constraints = [
+              name_eric < name_arnold
+            ]
+        variable_names:
+          - name_eric
+          - name_arnold
+          - type_of_pet_dog
+          - type_of_pet_cat
+        step: 1
+        prefix: []
+      answers:
+        - answer: |
+            ```python
+            constraints = [
+              z3.Not(type_of_pet_dog == 1)
+            ]
+            ```

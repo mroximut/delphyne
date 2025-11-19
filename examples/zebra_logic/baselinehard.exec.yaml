@@ -1,0 +1,28 @@
+
+command: run_strategy
+args:
+  strategy: zebra_baseline
+  args:
+    puzzle: | 
+      There are 4 houses, numbered 1 to 4 from left to right, as seen from across the street. Each house is occupied by a different person. Each house has a unique attribute for each of the following characteristics:
+      - Each person has a unique name: `Alice`, `Eric`, `Arnold`, `Peter`
+      - Each person has an occupation: `artist`, `engineer`, `teacher`, `doctor`
+      - People have unique favorite book genres: `fantasy`, `science fiction`, `mystery`, `romance`
+      - People use unique phone models: `google pixel 6`, `iphone 13`, `oneplus 9`, `samsung galaxy s21`
+
+      ## Clues:
+      1. The person who is an engineer is directly left of the person who uses a Samsung Galaxy S21.
+      2. The person who loves fantasy books is in the second house.
+      3. Alice is not in the second house.
+      4. Eric is the person who is a teacher.
+      5. The person who uses a Samsung Galaxy S21 is the person who loves fantasy books.
+      6. The person who uses an iPhone 13 is the person who loves science fiction books.
+      7. The person who loves science fiction books is somewhere to the left of the person who uses a OnePlus 9.
+      8. The person who uses a OnePlus 9 is Arnold.
+      9. The person who is a doctor is the person who loves mystery books.
+      10. The person who uses an iPhone 13 is the person who is a teacher.
+    puzzle_id: "lgp-test-4x4-27"
+  policy: zebra_baseline_policy
+  policy_args: {}
+  budget:
+    num_requests: 15

@@ -108,6 +108,9 @@ def zebra_baseline(
         )
 
     code_history: list[str] = []
+    total_steps = len(parsed.clues)
+    solution: list[list[str]] = []
+
     for step_idx, clue in enumerate(parsed.clues):
         # LLM formalizes clue, gets feedback if wrong, retries
         snippet = yield from dp.interact(
@@ -120,14 +123,20 @@ def zebra_baseline(
                 prefix=prefix,
             ).using(lambda p: p.formalize, ZebraBaselineIP),
             process=lambda snippet, _: check_and_add_constraints(
-                state, snippet, is_last=(step_idx == len(parsed.clues) - 1)
+                state,
+                snippet,
+                step_idx=step_idx,
+                total_steps=total_steps,
+                code_history=code_history,
             ).using(dp.just_compute),
         )
+        if step_idx == total_steps - 1:
+            assert isinstance(snippet, list)
+            solution = snippet
+            break
 
-        code_history.append(snippet)
+        code_history.append(cast(str, snippet))
 
-    state.solver.check()  # type: ignore
-    solution = model_to_solution(state)
     if puzzle_id:
         solutions_df = pd.read_csv(SOLUTIONS_CSV)  # type: ignore
         yield from dp.ensure(check_solution(solution, puzzle_id, solutions_df))
@@ -136,19 +145,27 @@ def zebra_baseline(
 
 @strategy
 def check_and_add_constraints(
-    state: SolverState, snippet: str, is_last: bool
-) -> dp.Strategy[Compute, object, str | dp.Error]:
-    def smt_call(snippet: str) -> str:
+    state: SolverState,
+    snippet: str,
+    step_idx: int,
+    total_steps: int,
+    code_history: list[str],
+) -> dp.Strategy[Compute, object, str | dp.Error | list[list[str]]]:
+    def single_smt_call(snippets: list[str]) -> str:
         try:
-            print(snippet)
-            constraints = execute_constraint_snippet(snippet, state=state)
-            state.last_constraints[0] = constraints
-            result = state.solver.check(*state.last_constraints[0])  # type: ignore
+            for snippet in snippets:
+                contraints = execute_constraint_snippet(snippet, state=state)
+                state.solver.push()
+                state.solver.add(*contraints)  # type: ignore
+            result = state.solver.check()  # type: ignore
+            state.solver.pop(num=len(snippets))
             return str(result)
         except Exception as exc:
             return f"__error__:{type(exc).__name__}:{str(exc)}"
 
-    sat_result = yield from dp.compute(smt_call)(snippet)
+    sat_result = yield from dp.compute(single_smt_call)(
+        code_history + [snippet]
+    )
 
     if sat_result.startswith("__error__"):
         _, exc_type, exc_msg = sat_result.split(":", 2)
@@ -159,15 +176,22 @@ def check_and_add_constraints(
                 "snippet": snippet,
             },
         )
-    elif sat_result == "sat":
-        state.solver.add(*state.last_constraints[0])  # type: ignore
-        # if is_last:
-        #     print("Final check...")
-        #     def check_sat() -> str:
-        #         result = state.solver.check()  # type: ignore
-        #         return str(result)
-        #     _ = yield from dp.compute(check_sat)()
+    elif sat_result == "sat" and step_idx < total_steps - 1:
         return snippet
+    elif sat_result == "sat" and step_idx == total_steps - 1:
+
+        def final_smt_call(snippets: list[str]) -> list[list[str]]:
+            for snippet in snippets:
+                contraints = execute_constraint_snippet(snippet, state=state)
+                state.solver.add(*contraints)  # type: ignore
+                state.solver.check()  # type: ignore
+            return model_to_solution(state)
+
+        final_solution = yield from dp.compute(final_smt_call)(
+            code_history + [snippet]
+        )
+        return final_solution
+
     else:
         return dp.Error(
             label="unsatisfiable_constraints",
