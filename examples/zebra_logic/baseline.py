@@ -31,6 +31,7 @@ def execute_constraint_snippet(
 ) -> list[z3.BoolRef]:
     global_vars = state.exec_global_vars
     local_vars: dict[str, object] = {}
+
     exec(snippet, global_vars, local_vars)
 
     candidate = local_vars.get("constraints")
@@ -113,7 +114,7 @@ def zebra_baseline(
 
     for step_idx, clue in enumerate(parsed.clues):
         # LLM formalizes clue, gets feedback if wrong, retries
-        snippet = yield from dp.interact(
+        snippet_or_solution = yield from dp.interact(
             step=lambda prefix, _,: FormalizeClue(
                 context=parsed.context,
                 clue=clue,
@@ -131,11 +132,11 @@ def zebra_baseline(
             ).using(dp.just_compute),
         )
         if step_idx == total_steps - 1:
-            assert isinstance(snippet, list)
-            solution = snippet
+            assert isinstance(snippet_or_solution, list)
+            solution = snippet_or_solution
             break
 
-        code_history.append(cast(str, snippet))
+        code_history.append(cast(str, snippet_or_solution))
 
     if puzzle_id:
         solutions_df = pd.read_csv(SOLUTIONS_CSV)  # type: ignore
@@ -205,7 +206,7 @@ def check_and_add_constraints(
 
 @dp.ensure_compatible(zebra_baseline)
 def zebra_baseline_policy(
-    model_name: dp.StandardModelName = "gpt-5-mini",
+    model_name: dp.StandardModelName = "gpt-5-nano",
 ) -> dp.Policy[Branch | Fail, ZebraBaselineIP]:
     model = dp.standard_model(model_name)
     return dp.dfs() & ZebraBaselineIP(formalize=dp.few_shot(model))
@@ -225,7 +226,7 @@ if __name__ == "__main__":
     2. The person who uses an iPhone 13 is the person who has a cat.
     """
     puzzle_id = "lgp-test-2x3-36"
-    state = build_solver(parse_puzzle(example_puzzle, id=puzzle_id))
+    # state = build_solver(parse_puzzle(example_puzzle, id=puzzle_id))
     # constraints = execute_constraint_snippet(
     #     "constraints = [type_of_pet_dog == name_arnold - 1]", state=state
     # )
