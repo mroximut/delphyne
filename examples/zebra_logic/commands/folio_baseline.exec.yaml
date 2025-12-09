@@ -1,0 +1,15 @@
+command: run_strategy
+args:
+  strategy: folio_baseline
+  args:
+    puzzle: | 
+      William Dickinson was a British politician who sat in the House of Commons
+      William Dickinson attended Westminster school for high school and then the University of Edinburgh.
+      The University of Edinburgh is a university located in the United Kingdom.
+      William Dickinson supported the Portland Whigs.
+      People who supported the Portland Whigs did not get a seat in the Parliament.
+      Conclusion: William Dickinson did not get a seat in Parliament.
+  policy: folio_baseline_policy
+  policy_args: {}
+  budget:
+    num_requests: 10

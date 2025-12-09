@@ -1,0 +1,1089 @@
+
+command: run_strategy
+args:
+  strategy: zebra_baseline
+  args:
+    puzzle: | 
+     There are 2 houses, numbered 1 to 2 from left to right, as seen from across 
+     the street. Each house is occupied by a different person. Each house has a 
+     unique attribute for each of the following characteristics:
+     - Each person has a unique name: `Arnold`, `Eric`
+     - People use unique phone models: `samsung galaxy s21`, `iphone 13`
+     - Each person has a unique type of pet: `dog`, `cat`
+
+     ## Clues:
+     1. The person who owns a dog is directly left of Arnold.
+     2. The person who uses an iPhone 13 is the person who has a cat.
+    puzzle_id: "lgp-test-2x3-36"
+  policy: zebra_baseline_policy
+  policy_args: {}
+  using:
+    - demo: demos/zebra_baseline.demo.yaml:zebra_simple
+  budget:
+    num_requests: 4
+outcome:
+  status: completed
+  diagnostics: []
+  result:
+    success: true
+    values:
+      - - ["1", Eric, samsung galaxy s21, dog]
+        - ["2", Arnold, iphone 13, cat]
+    spent_budget:
+      num_requests: 2
+      num_completions: 2
+      input_tokens: 1015
+      output_tokens: 95
+      cached_input_tokens: 0
+      price: 0.00008874999999999999
+    success_nodes: [10]
+    raw_trace:
+      nodes:
+        "1": nested($0)
+        "2": child(%1, $1{@1})
+        "3": nested($2)
+        "4": child(%3, $3{@2})
+        "5": child(%2, $2{%4})
+        "6": child(%5, $4{@3})
+        "7": nested($5)
+        "8": child(%7, $6{@4})
+        "9": child(%8, $7{@5})
+        "10": child(%6, $5{%9})
+      spaces:
+        "0": main
+        "1": local(%1, cands)
+        "2": local(%2, cands)
+        "3": local(%3, query)
+        "4": local(%5, cands)
+        "5": local(%6, cands)
+        "6": local(%7, query)
+        "7": local(%8, query)
+      answers:
+        "1":
+          space: 1
+          answer:
+            mode: null
+            content: |-
+              ```python
+              constraints = [
+                  # The person who owns a dog is directly left of Arnold.
+                  type_of_pet_dog == name_arnold - 1
+              ]
+              ```
+            tool_calls: []
+            justification: null
+        "2":
+          space: 3
+          answer:
+            mode: null
+            content: |
+              sat
+              ...
+            tool_calls: []
+            justification: null
+        "3":
+          space: 4
+          answer:
+            mode: null
+            content: |-
+              ```python
+              constraints = [
+                  # The person who uses an iPhone 13 is the person who has a cat.
+                  phone_models_iphone_13 == type_of_pet_cat
+              ]
+              ```
+            tool_calls: []
+            justification: null
+        "4":
+          space: 6
+          answer:
+            mode: null
+            content: |
+              sat
+              ...
+            tool_calls: []
+            justification: null
+        "5":
+          space: 7
+          answer:
+            mode: null
+            content: |
+              - - '1'
+                - Eric
+                - samsung galaxy s21
+                - dog
+              - - '2'
+                - Arnold
+                - iphone 13
+                - cat
+            tool_calls: []
+            justification: null
+    log:
+      - message: llm_request
+        level: info
+        message_id: 0
+        related: []
+        time: 2025-12-08T15:49:45.344780
+        node: null
+        space: 1
+        metadata:
+          query: FormalizeClue
+          request:
+            chat:
+              - role: system
+                content: |-
+                  Convert a single `clue` from a Zebra logic puzzle into Z3 constraints. The
+                  uniqueness contraints from `context` are already encoded in the solver.
+                  Each variable from `variable_names` is of type z3.Int() and
+                  available for use in your output snippet. A value of a variable is the
+                  number of the house that object occupies. Additionally, note that
+                  `previous_snippets` are used for formalizing previous clues, and `step`
+                  indicates the index of the current clue being formalized (0-based).
+
+                  You should not additionally fix concrete positions unless implied by previous
+                  steps. Therefore, provide only the direct mapping constraint without forcing
+                  a specific house number for some variable. For example use `var_a == var_b
+                  + 1` instead of `z3.And(var_ b == 1, var_a == 2)` if the clue indicates that
+                  `var_a` is directly to the right of `var_b`.
+
+                  Return Python code wrapped in a triple-backtick block. The code must define
+                  a list named `constraints` containing z3.BoolRef (if there is only one
+                  constraint, then it is a one-element list) capturing only the information
+                  from the provided clue. Do not modify the solver or call `check`. You must
+                  prepend `z3.` to all Z3 API calls. Do not include any import statements.
+              - role: user
+                content: |-
+                  context: "There are 2 houses, numbered 1 to 2 from left to right, as seen from across \nthe street. Each\
+                    \ house is occupied by a different person. Each house has a \nunique attribute for each of the following\
+                    \ characteristics:\n- Each person has a unique name: `Arnold`, `Eric`\n- People use unique phone models:\
+                    \ `samsung galaxy s21`, `iphone 13`\n- Each person has a unique type of pet: `dog`, `cat`"
+                  clue: The person who owns a dog is directly left of Arnold.
+                  previous_snippets: []
+                  variable_names:
+                    - name_arnold
+                    - name_eric
+                    - phone_models_samsung_galaxy_s21
+                    - phone_models_iphone_13
+                    - type_of_pet_dog
+                    - type_of_pet_cat
+                  step: 0
+            options: {}
+      - message: llm_response
+        level: info
+        message_id: 1
+        related: [0]
+        time: 2025-12-08T15:49:48.085018
+        node: null
+        space: 1
+        metadata:
+          response:
+            outputs:
+              - content: |-
+                  ```python
+                  constraints = [
+                      # The person who owns a dog is directly left of Arnold.
+                      type_of_pet_dog == name_arnold - 1
+                  ]
+                  ```
+                tool_calls: []
+            budget:
+              values:
+                num_requests: 1
+                num_completions: 1
+                input_tokens: 486
+                output_tokens: 46
+                cached_input_tokens: 0
+                price: 0.000042699999999999994
+            log_items: []
+            model_name: gpt-5-nano-2025-08-07
+            usage_info:
+              completion_tokens: 46
+              prompt_tokens: 486
+              total_tokens: 532
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 0
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+          usage:
+            model: gpt-5-nano-2025-08-07
+            usage:
+              completion_tokens: 46
+              prompt_tokens: 486
+              total_tokens: 532
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 0
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+      - message: llm_request
+        level: info
+        message_id: 2
+        related: []
+        time: 2025-12-08T15:49:48.127990
+        node: null
+        space: 4
+        metadata:
+          query: FormalizeClue
+          request:
+            chat:
+              - role: system
+                content: |-
+                  Convert a single `clue` from a Zebra logic puzzle into Z3 constraints. The
+                  uniqueness contraints from `context` are already encoded in the solver.
+                  Each variable from `variable_names` is of type z3.Int() and
+                  available for use in your output snippet. A value of a variable is the
+                  number of the house that object occupies. Additionally, note that
+                  `previous_snippets` are used for formalizing previous clues, and `step`
+                  indicates the index of the current clue being formalized (0-based).
+
+                  You should not additionally fix concrete positions unless implied by previous
+                  steps. Therefore, provide only the direct mapping constraint without forcing
+                  a specific house number for some variable. For example use `var_a == var_b
+                  + 1` instead of `z3.And(var_ b == 1, var_a == 2)` if the clue indicates that
+                  `var_a` is directly to the right of `var_b`.
+
+                  Return Python code wrapped in a triple-backtick block. The code must define
+                  a list named `constraints` containing z3.BoolRef (if there is only one
+                  constraint, then it is a one-element list) capturing only the information
+                  from the provided clue. Do not modify the solver or call `check`. You must
+                  prepend `z3.` to all Z3 API calls. Do not include any import statements.
+              - role: user
+                content: |-
+                  context: "There are 2 houses, numbered 1 to 2 from left to right, as seen from across \nthe street. Each\
+                    \ house is occupied by a different person. Each house has a \nunique attribute for each of the following\
+                    \ characteristics:\n- Each person has a unique name: `Arnold`, `Eric`\n- People use unique phone models:\
+                    \ `samsung galaxy s21`, `iphone 13`\n- Each person has a unique type of pet: `dog`, `cat`"
+                  clue: The person who uses an iPhone 13 is the person who has a cat.
+                  previous_snippets:
+                    - |-
+                      constraints = [
+                          # The person who owns a dog is directly left of Arnold.
+                          type_of_pet_dog == name_arnold - 1
+                      ]
+                  variable_names:
+                    - name_arnold
+                    - name_eric
+                    - phone_models_samsung_galaxy_s21
+                    - phone_models_iphone_13
+                    - type_of_pet_dog
+                    - type_of_pet_cat
+                  step: 1
+            options: {}
+      - message: llm_response
+        level: info
+        message_id: 3
+        related: [2]
+        time: 2025-12-08T15:49:49.573918
+        node: null
+        space: 4
+        metadata:
+          response:
+            outputs:
+              - content: |-
+                  ```python
+                  constraints = [
+                      # The person who uses an iPhone 13 is the person who has a cat.
+                      phone_models_iphone_13 == type_of_pet_cat
+                  ]
+                  ```
+                tool_calls: []
+            budget:
+              values:
+                num_requests: 1
+                num_completions: 1
+                input_tokens: 529
+                output_tokens: 49
+                cached_input_tokens: 0
+                price: 0.000046049999999999994
+            log_items: []
+            model_name: gpt-5-nano-2025-08-07
+            usage_info:
+              completion_tokens: 49
+              prompt_tokens: 529
+              total_tokens: 578
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 0
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+          usage:
+            model: gpt-5-nano-2025-08-07
+            usage:
+              completion_tokens: 49
+              prompt_tokens: 529
+              total_tokens: 578
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 0
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+    browsable_trace:
+      nodes:
+        "1":
+          kind: Branch
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: FormalizeClue
+          tags: [FormalizeClue]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 1
+              - kind: query
+                name: FormalizeClue
+                args:
+                  context: |-
+                    There are 2 houses, numbered 1 to 2 from left to right, as seen from across 
+                    the street. Each house is occupied by a different person. Each house has a 
+                    unique attribute for each of the following characteristics:
+                    - Each person has a unique name: `Arnold`, `Eric`
+                    - People use unique phone models: `samsung galaxy s21`, `iphone 13`
+                    - Each person has a unique type of pet: `dog`, `cat`
+                  clue: The person who owns a dog is directly left of Arnold.
+                  previous_snippets: []
+                  variable_names:
+                    - name_arnold
+                    - name_eric
+                    - phone_models_samsung_galaxy_s21
+                    - phone_models_iphone_13
+                    - type_of_pet_dog
+                    - type_of_pet_cat
+                  step: 0
+                  prefix: []
+                tags: [FormalizeClue]
+                answers:
+                  - id: 1
+                    hint: null
+                    value:
+                      short: "Response(answer=Answer(mode=None, content='```python\\nconstraints = [\\n    # The person who owns a dog is directly left of Arnold.\\n    type_of_pet_dog == name_arnold - 1\\n]\\n```', tool_calls=(), justification=None), parsed=FinalAnswer(final='constraints = [\\n    # The person who owns a dog is directly left of Arnold.\\n    type_of_pet_dog == name_arnold - 1\\n]'))"
+                      long: |-
+                        Response(answer=Answer(mode=None,
+                                               content='```python\n'
+                                                       'constraints = [\n'
+                                                       '    # The person who owns a dog is directly '
+                                                       'left of Arnold.\n'
+                                                       '    type_of_pet_dog == name_arnold - 1\n'
+                                                       ']\n'
+                                                       '```',
+                                               tool_calls=(),
+                                               justification=None),
+                                 parsed=FinalAnswer(final='constraints = [\n'
+                                                          '    # The person who owns a dog is directly '
+                                                          'left of Arnold.\n'
+                                                          '    type_of_pet_dog == name_arnold - 1\n'
+                                                          ']'))
+                      json_provided: false
+                      json: null
+          actions:
+            - ref:
+                with_ids: $1{@1}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [1]
+              value:
+                short: "Response(answer=Answer(mode=None, content='```python\\nconstraints = [\\n    # The person who owns a dog is directly left of Arnold.\\n    type_of_pet_dog == name_arnold - 1\\n]\\n```', tool_calls=(), justification=None), parsed=FinalAnswer(final='constraints = [\\n    # The person who owns a dog is directly left of Arnold.\\n    type_of_pet_dog == name_arnold - 1\\n]'))"
+                long: |-
+                  Response(answer=Answer(mode=None,
+                                         content='```python\n'
+                                                 'constraints = [\n'
+                                                 '    # The person who owns a dog is directly '
+                                                 'left of Arnold.\n'
+                                                 '    type_of_pet_dog == name_arnold - 1\n'
+                                                 ']\n'
+                                                 '```',
+                                         tool_calls=(),
+                                         justification=None),
+                           parsed=FinalAnswer(final='constraints = [\n'
+                                                    '    # The person who owns a dog is directly '
+                                                    'left of Arnold.\n'
+                                                    '    type_of_pet_dog == name_arnold - 1\n'
+                                                    ']'))
+                json_provided: false
+                json: null
+              destination: 2
+          origin: root
+        "2":
+          kind: Run
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: check_and_add_constraints
+          tags: [check_and_add_constraints]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 2
+              - kind: nested
+                strategy: check_and_add_constraints
+                args:
+                  state:
+                    short: |-
+                      SolverState(solver=[name_arnold >= 1,
+                       name_arnold <= 2,
+                       Distinct(name_arnold),
+                       name_eric >= 1,
+                       name_eric <= 2,
+                       name_arnold != name_eric,
+                       phone_models_samsung_galaxy_s21 >= 1,
+                       phone_models_samsung_galaxy_s21 <= 2,
+                       Distinct(phone_models_samsung_galaxy_s21),
+                       phone_models_iphone_13 >= 1,
+                       phone_models_iphone_13 <= 2,
+                       phone_models_samsung_galaxy_s21 != phone_models_iphone_13,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat], z3vars_for_attr={'name': {'Arnold': name_arnold, 'Eric': name_eric}, 'phone_models': {'samsung galaxy s21': phone_models_samsung_galaxy_s21, 'iphone 13': phone_models_iphone_13}, 'type_of_pet': {'dog': type_of_pet_dog, 'cat': type_of_pet_cat}}, exec_global_vars={'num_houses': 2, 'solver': [name_arnold >= 1,
+                       name_arnold <= 2,
+                       Distinct(name_arnold),
+                       name_eric >= 1,
+                       name_eric <= 2,
+                       name_arnold != name_eric,
+                       phone_models_samsung_galaxy_s21 >= 1,
+                       phone_models_samsung_galaxy_s21 <= 2,
+                       Distinct(phone_models_samsung_galaxy_s21),
+                       phone_models_iphone_13 >= 1,
+                       phone_models_iphone_13 <= 2,
+                       phone_models_samsung_galaxy_s21 != phone_models_iphone_13,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat], 'z3': <module 'z3' from '/home/oguz/miniconda3/envs/delphyne/lib/python3.12/site-packages/z3/__init__.py'>, 'name_arnold': name_arnold, 'name_eric': name_eric, 'phone_models_samsung_galaxy_s21': phone_models_samsung_galaxy_s21, 'phone_models_iphone_13': phone_models_iphone_13, 'type_of_pet_dog': type_of_pet_dog, 'type_of_pet_cat': type_of_pet_cat, '__builtins__': {'__name__': 'builtins', '__doc__': "Built-in functions, types, exceptions, and other objects.\n\nThis module provides direct access to all 'built-in'\nidentifiers of Python; for example, builtins.len is\nthe full name for the built-in function len().\n\nThis module is not normally accessed explicitly by most\napplications, but can be useful in modules that provide\nobjects with the same name as a built-in value, but in\nwhich the built-in of that name is also needed.", '__package__': '', '__loader__': <class '_frozen_importlib.BuiltinImporter'>, '__spec__': ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>, origin='built-in'), '__build_class__': <built-in function __build_class__>, '__import__': <built-in function __import__>, 'abs': <built-in function abs>, 'all': <built-in function all>, 'any': <built-in function any>, 'ascii': <built-in function ascii>, 'bin': <built-in function bin>, 'breakpoint': <built-in function breakpoint>, 'callable': <built-in function callable>, 'chr': <built-in function chr>, 'compile': <built-in function compile>, 'delattr': <built-in function delattr>, 'dir': <built-in function dir>, 'divmod': <built-in function divmod>, 'eval': <built-in function eval>, 'exec': <built-in function exec>, 'format': <built-in function format>, 'getattr': <built-in function getattr>, 'globals': <built-in function globals>, 'hasattr': <built-in function hasattr>, 'hash': <built-in function hash>, 'hex': <built-in function hex>, 'id': <built-in function id>, 'input': <built-in function input>, 'isinstance': <built-in function isinstance>, 'issubclass': <built-in function issubclass>, 'iter': <built-in function iter>, 'aiter': <built-in function aiter>, 'len': <built-in function len>, 'locals': <built-in function locals>, 'max': <built-in function max>, 'min': <built-in function min>, 'next': <built-in function next>, 'anext': <built-in function anext>, 'oct': <built-in function oct>, 'ord': <built-in function ord>, 'pow': <built-in function pow>, 'print': <built-in function print>, 'repr': <built-in function repr>, 'round': <built-in function round>, 'setattr': <built-in function setattr>, 'sorted': <built-in function sorted>, 'sum': <built-in function sum>, 'vars': <built-in function vars>, 'None': None, 'Ellipsis': Ellipsis, 'NotImplemented': NotImplemented, 'False': False, 'True': True, 'bool': <class 'bool'>, 'memoryview': <class 'memoryview'>, 'bytearray': <class 'bytearray'>, 'bytes': <class 'bytes'>, 'classmethod': <class 'classmethod'>, 'complex': <class 'complex'>, 'dict': <class 'dict'>, 'enumerate': <class 'enumerate'>, 'filter': <class 'filter'>, 'float': <class 'float'>, 'frozenset': <class 'frozenset'>, 'property': <class 'property'>, 'int': <class 'int'>, 'list': <class 'list'>, 'map': <class 'map'>, 'object': <class 'object'>, 'range': <class 'range'>, 'reversed': <class 'reversed'>, 'set': <class 'set'>, 'slice': <class 'slice'>, 'staticmethod': <class 'staticmethod'>, 'str': <class 'str'>, 'super': <class 'super'>, 'tuple': <class 'tuple'>, 'type': <class 'type'>, 'zip': <class 'zip'>, '__debug__': True, 'BaseException': <class 'BaseException'>, 'BaseExceptionGroup': <class 'BaseExceptionGroup'>, 'Exception': <class 'Exception'>, 'GeneratorExit': <class 'GeneratorExit'>, 'KeyboardInterrupt': <class 'KeyboardInterrupt'>, 'SystemExit': <class 'SystemExit'>, 'ArithmeticError': <class 'ArithmeticError'>, 'AssertionError': <class 'AssertionError'>, 'AttributeError': <class 'AttributeError'>, 'BufferError': <class 'BufferError'>, 'EOFError': <class 'EOFError'>, 'ImportError': <class 'ImportError'>, 'LookupError': <class 'LookupError'>, 'MemoryError': <class 'MemoryError'>, 'NameError': <class 'NameError'>, 'OSError': <class 'OSError'>, 'ReferenceError': <class 'ReferenceError'>, 'RuntimeError': <class 'RuntimeError'>, 'StopAsyncIteration': <class 'StopAsyncIteration'>, 'StopIteration': <class 'StopIteration'>, 'SyntaxError': <class 'SyntaxError'>, 'SystemError': <class 'SystemError'>, 'TypeError': <class 'TypeError'>, 'ValueError': <class 'ValueError'>, 'Warning': <class 'Warning'>, 'FloatingPointError': <class 'FloatingPointError'>, 'OverflowError': <class 'OverflowError'>, 'ZeroDivisionError': <class 'ZeroDivisionError'>, 'BytesWarning': <class 'BytesWarning'>, 'DeprecationWarning': <class 'DeprecationWarning'>, 'EncodingWarning': <class 'EncodingWarning'>, 'FutureWarning': <class 'FutureWarning'>, 'ImportWarning': <class 'ImportWarning'>, 'PendingDeprecationWarning': <class 'PendingDeprecationWarning'>, 'ResourceWarning': <class 'ResourceWarning'>, 'RuntimeWarning': <class 'RuntimeWarning'>, 'SyntaxWarning': <class 'SyntaxWarning'>, 'UnicodeWarning': <class 'UnicodeWarning'>, 'UserWarning': <class 'UserWarning'>, 'BlockingIOError': <class 'BlockingIOError'>, 'ChildProcessError': <class 'ChildProcessError'>, 'ConnectionError': <class 'ConnectionError'>, 'FileExistsError': <class 'FileExistsError'>, 'FileNotFoundError': <class 'FileNotFoundError'>, 'InterruptedError': <class 'InterruptedError'>, 'IsADirectoryError': <class 'IsADirectoryError'>, 'NotADirectoryError': <class 'NotADirectoryError'>, 'PermissionError': <class 'PermissionError'>, 'ProcessLookupError': <class 'ProcessLookupError'>, 'TimeoutError': <class 'TimeoutError'>, 'IndentationError': <class 'IndentationError'>, 'IndexError': <class 'IndexError'>, 'KeyError': <class 'KeyError'>, 'ModuleNotFoundError': <class 'ModuleNotFoundError'>, 'NotImplementedError': <class 'NotImplementedError'>, 'RecursionError': <class 'RecursionError'>, 'UnboundLocalError': <class 'UnboundLocalError'>, 'UnicodeError': <class 'UnicodeError'>, 'BrokenPipeError': <class 'BrokenPipeError'>, 'ConnectionAbortedError': <class 'ConnectionAbortedError'>, 'ConnectionRefusedError': <class 'ConnectionRefusedError'>, 'ConnectionResetError': <class 'ConnectionResetError'>, 'TabError': <class 'TabError'>, 'UnicodeDecodeError': <class 'UnicodeDecodeError'>, 'UnicodeEncodeError': <class 'UnicodeEncodeError'>, 'UnicodeTranslateError': <class 'UnicodeTranslateError'>, 'ExceptionGroup': <class 'ExceptionGroup'>, 'EnvironmentError': <class 'OSError'>, 'IOError': <class 'OSError'>, 'open': <built-in function open>, 'quit': Use quit() or Ctrl-D (i.e. EOF) to exit, 'exit': Use exit() or Ctrl-D (i.e. EOF) to exit, 'copyright': Copyright (c) 2001-2023 Python Software Foundation.
+                      All Rights Reserved.
+
+                      Copyright (c) 2000 BeOpen.com.
+                      All Rights Reserved.
+
+                      Copyright (c) 1995-2001 Corporation for National Research Initiatives.
+                      All Rights Reserved.
+
+                      Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.
+                      All Rights Reserved., 'credits':     Thanks to CWI, CNRI, BeOpen, Zope Corporation, the Python Software
+                          Foundation, and a cast of thousands for supporting Python
+                          development.  See www.python.org for more information., 'license': Type license() to see the full license text, 'help': Type help() for interactive help, or help(object) for help about object.}}, variable_names=['name_arnold', 'name_eric', 'phone_models_samsung_galaxy_s21', 'phone_models_iphone_13', 'type_of_pet_dog', 'type_of_pet_cat'])
+                    long: |-
+                      SolverState(solver=[name_arnold >= 1,
+                       name_arnold <= 2,
+                       Distinct(name_arnold),
+                       name_eric >= 1,
+                       name_eric <= 2,
+                       name_arnold != name_eric,
+                       phone_models_samsung_galaxy_s21 >= 1,
+                       phone_models_samsung_galaxy_s21 <= 2,
+                       Distinct(phone_models_samsung_galaxy_s21),
+                       phone_models_iphone_13 >= 1,
+                       phone_models_iphone_13 <= 2,
+                       phone_models_samsung_galaxy_s21 != phone_models_iphone_13,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat], z3vars_for_attr={'name': {'Arnold': name_arnold, 'Eric': name_eric}, 'phone_models': {'samsung galaxy s21': phone_models_samsung_galaxy_s21, 'iphone 13': phone_models_iphone_13}, 'type_of_pet': {'dog': type_of_pet_dog, 'cat': type_of_pet_cat}}, exec_global_vars={'num_houses': 2, 'solver': [name_arnold >= 1,
+                       name_arnold <= 2,
+                       Distinct(name_arnold),
+                       name_eric >= 1,
+                       name_eric <= 2,
+                       name_arnold != name_eric,
+                       phone_models_samsung_galaxy_s21 >= 1,
+                       phone_models_samsung_galaxy_s21 <= 2,
+                       Distinct(phone_models_samsung_galaxy_s21),
+                       phone_models_iphone_13 >= 1,
+                       phone_models_iphone_13 <= 2,
+                       phone_models_samsung_galaxy_s21 != phone_models_iphone_13,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat], 'z3': <module 'z3' from '/home/oguz/miniconda3/envs/delphyne/lib/python3.12/site-packages/z3/__init__.py'>, 'name_arnold': name_arnold, 'name_eric': name_eric, 'phone_models_samsung_galaxy_s21': phone_models_samsung_galaxy_s21, 'phone_models_iphone_13': phone_models_iphone_13, 'type_of_pet_dog': type_of_pet_dog, 'type_of_pet_cat': type_of_pet_cat, '__builtins__': {'__name__': 'builtins', '__doc__': "Built-in functions, types, exceptions, and other objects.\n\nThis module provides direct access to all 'built-in'\nidentifiers of Python; for example, builtins.len is\nthe full name for the built-in function len().\n\nThis module is not normally accessed explicitly by most\napplications, but can be useful in modules that provide\nobjects with the same name as a built-in value, but in\nwhich the built-in of that name is also needed.", '__package__': '', '__loader__': <class '_frozen_importlib.BuiltinImporter'>, '__spec__': ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>, origin='built-in'), '__build_class__': <built-in function __build_class__>, '__import__': <built-in function __import__>, 'abs': <built-in function abs>, 'all': <built-in function all>, 'any': <built-in function any>, 'ascii': <built-in function ascii>, 'bin': <built-in function bin>, 'breakpoint': <built-in function breakpoint>, 'callable': <built-in function callable>, 'chr': <built-in function chr>, 'compile': <built-in function compile>, 'delattr': <built-in function delattr>, 'dir': <built-in function dir>, 'divmod': <built-in function divmod>, 'eval': <built-in function eval>, 'exec': <built-in function exec>, 'format': <built-in function format>, 'getattr': <built-in function getattr>, 'globals': <built-in function globals>, 'hasattr': <built-in function hasattr>, 'hash': <built-in function hash>, 'hex': <built-in function hex>, 'id': <built-in function id>, 'input': <built-in function input>, 'isinstance': <built-in function isinstance>, 'issubclass': <built-in function issubclass>, 'iter': <built-in function iter>, 'aiter': <built-in function aiter>, 'len': <built-in function len>, 'locals': <built-in function locals>, 'max': <built-in function max>, 'min': <built-in function min>, 'next': <built-in function next>, 'anext': <built-in function anext>, 'oct': <built-in function oct>, 'ord': <built-in function ord>, 'pow': <built-in function pow>, 'print': <built-in function print>, 'repr': <built-in function repr>, 'round': <built-in function round>, 'setattr': <built-in function setattr>, 'sorted': <built-in function sorted>, 'sum': <built-in function sum>, 'vars': <built-in function vars>, 'None': None, 'Ellipsis': Ellipsis, 'NotImplemented': NotImplemented, 'False': False, 'True': True, 'bool': <class 'bool'>, 'memoryview': <class 'memoryview'>, 'bytearray': <class 'bytearray'>, 'bytes': <class 'bytes'>, 'classmethod': <class 'classmethod'>, 'complex': <class 'complex'>, 'dict': <class 'dict'>, 'enumerate': <class 'enumerate'>, 'filter': <class 'filter'>, 'float': <class 'float'>, 'frozenset': <class 'frozenset'>, 'property': <class 'property'>, 'int': <class 'int'>, 'list': <class 'list'>, 'map': <class 'map'>, 'object': <class 'object'>, 'range': <class 'range'>, 'reversed': <class 'reversed'>, 'set': <class 'set'>, 'slice': <class 'slice'>, 'staticmethod': <class 'staticmethod'>, 'str': <class 'str'>, 'super': <class 'super'>, 'tuple': <class 'tuple'>, 'type': <class 'type'>, 'zip': <class 'zip'>, '__debug__': True, 'BaseException': <class 'BaseException'>, 'BaseExceptionGroup': <class 'BaseExceptionGroup'>, 'Exception': <class 'Exception'>, 'GeneratorExit': <class 'GeneratorExit'>, 'KeyboardInterrupt': <class 'KeyboardInterrupt'>, 'SystemExit': <class 'SystemExit'>, 'ArithmeticError': <class 'ArithmeticError'>, 'AssertionError': <class 'AssertionError'>, 'AttributeError': <class 'AttributeError'>, 'BufferError': <class 'BufferError'>, 'EOFError': <class 'EOFError'>, 'ImportError': <class 'ImportError'>, 'LookupError': <class 'LookupError'>, 'MemoryError': <class 'MemoryError'>, 'NameError': <class 'NameError'>, 'OSError': <class 'OSError'>, 'ReferenceError': <class 'ReferenceError'>, 'RuntimeError': <class 'RuntimeError'>, 'StopAsyncIteration': <class 'StopAsyncIteration'>, 'StopIteration': <class 'StopIteration'>, 'SyntaxError': <class 'SyntaxError'>, 'SystemError': <class 'SystemError'>, 'TypeError': <class 'TypeError'>, 'ValueError': <class 'ValueError'>, 'Warning': <class 'Warning'>, 'FloatingPointError': <class 'FloatingPointError'>, 'OverflowError': <class 'OverflowError'>, 'ZeroDivisionError': <class 'ZeroDivisionError'>, 'BytesWarning': <class 'BytesWarning'>, 'DeprecationWarning': <class 'DeprecationWarning'>, 'EncodingWarning': <class 'EncodingWarning'>, 'FutureWarning': <class 'FutureWarning'>, 'ImportWarning': <class 'ImportWarning'>, 'PendingDeprecationWarning': <class 'PendingDeprecationWarning'>, 'ResourceWarning': <class 'ResourceWarning'>, 'RuntimeWarning': <class 'RuntimeWarning'>, 'SyntaxWarning': <class 'SyntaxWarning'>, 'UnicodeWarning': <class 'UnicodeWarning'>, 'UserWarning': <class 'UserWarning'>, 'BlockingIOError': <class 'BlockingIOError'>, 'ChildProcessError': <class 'ChildProcessError'>, 'ConnectionError': <class 'ConnectionError'>, 'FileExistsError': <class 'FileExistsError'>, 'FileNotFoundError': <class 'FileNotFoundError'>, 'InterruptedError': <class 'InterruptedError'>, 'IsADirectoryError': <class 'IsADirectoryError'>, 'NotADirectoryError': <class 'NotADirectoryError'>, 'PermissionError': <class 'PermissionError'>, 'ProcessLookupError': <class 'ProcessLookupError'>, 'TimeoutError': <class 'TimeoutError'>, 'IndentationError': <class 'IndentationError'>, 'IndexError': <class 'IndexError'>, 'KeyError': <class 'KeyError'>, 'ModuleNotFoundError': <class 'ModuleNotFoundError'>, 'NotImplementedError': <class 'NotImplementedError'>, 'RecursionError': <class 'RecursionError'>, 'UnboundLocalError': <class 'UnboundLocalError'>, 'UnicodeError': <class 'UnicodeError'>, 'BrokenPipeError': <class 'BrokenPipeError'>, 'ConnectionAbortedError': <class 'ConnectionAbortedError'>, 'ConnectionRefusedError': <class 'ConnectionRefusedError'>, 'ConnectionResetError': <class 'ConnectionResetError'>, 'TabError': <class 'TabError'>, 'UnicodeDecodeError': <class 'UnicodeDecodeError'>, 'UnicodeEncodeError': <class 'UnicodeEncodeError'>, 'UnicodeTranslateError': <class 'UnicodeTranslateError'>, 'ExceptionGroup': <class 'ExceptionGroup'>, 'EnvironmentError': <class 'OSError'>, 'IOError': <class 'OSError'>, 'open': <built-in function open>, 'quit': Use quit() or Ctrl-D (i.e. EOF) to exit, 'exit': Use exit() or Ctrl-D (i.e. EOF) to exit, 'copyright': Copyright (c) 2001-2023 Python Software Foundation.
+                      All Rights Reserved.
+
+                      Copyright (c) 2000 BeOpen.com.
+                      All Rights Reserved.
+
+                      Copyright (c) 1995-2001 Corporation for National Research Initiatives.
+                      All Rights Reserved.
+
+                      Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.
+                      All Rights Reserved., 'credits':     Thanks to CWI, CNRI, BeOpen, Zope Corporation, the Python Software
+                          Foundation, and a cast of thousands for supporting Python
+                          development.  See www.python.org for more information., 'license': Type license() to see the full license text, 'help': Type help() for interactive help, or help(object) for help about object.}}, variable_names=['name_arnold', 'name_eric', 'phone_models_samsung_galaxy_s21', 'phone_models_iphone_13', 'type_of_pet_dog', 'type_of_pet_cat'])
+                    json_provided: false
+                    json: null
+                  snippet:
+                    short: |-
+                      constraints = [
+                          # The person who owns a dog is directly left of Arnold.
+                          type_of_pet_dog == name_arnold - 1
+                      ]
+                    long: |-
+                      ('constraints = [\n'
+                       '    # The person who owns a dog is directly left of Arnold.\n'
+                       '    type_of_pet_dog == name_arnold - 1\n'
+                       ']')
+                    json_provided: true
+                    json: |-
+                      constraints = [
+                          # The person who owns a dog is directly left of Arnold.
+                          type_of_pet_dog == name_arnold - 1
+                      ]
+                  step_idx:
+                    short: "0"
+                    long: "0"
+                    json_provided: true
+                    json: 0
+                  total_steps:
+                    short: "2"
+                    long: "2"
+                    json_provided: true
+                    json: 2
+                  code_history:
+                    short: "[]"
+                    long: "[]"
+                    json_provided: true
+                    json: []
+                tags: [check_and_add_constraints]
+                node_id: 3
+          actions:
+            - ref:
+                with_ids: $2{%4}
+                with_hints: null
+              hints: null
+              related_success_nodes: [4]
+              related_answers: []
+              value:
+                short: |-
+                  constraints = [
+                      # The person who owns a dog is directly left of Arnold.
+                      type_of_pet_dog == name_arnold - 1
+                  ]
+                long: |-
+                  ('constraints = [\n'
+                   '    # The person who owns a dog is directly left of Arnold.\n'
+                   '    type_of_pet_dog == name_arnold - 1\n'
+                   ']')
+                json_provided: true
+                json: |-
+                  constraints = [
+                      # The person who owns a dog is directly left of Arnold.
+                      type_of_pet_dog == name_arnold - 1
+                  ]
+              destination: 5
+          origin: [child, 1, 0]
+        "3":
+          kind: Compute
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: null
+          tags: []
+          properties:
+            - - with_ids: query
+                with_hints: null
+              - 3
+              - kind: query
+                name: __Computation__
+                args:
+                  fun: single_smt_call
+                  args:
+                    snippets:
+                      - |-
+                        constraints = [
+                            # The person who owns a dog is directly left of Arnold.
+                            type_of_pet_dog == name_arnold - 1
+                        ]
+                tags: [__Computation__]
+                answers:
+                  - id: 2
+                    hint: null
+                    value:
+                      short: sat
+                      long: "'sat'"
+                      json_provided: true
+                      json: sat
+          actions:
+            - ref:
+                with_ids: $3{@2}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [2]
+              value:
+                short: sat
+                long: "'sat'"
+                json_provided: true
+                json: sat
+              destination: 4
+          origin: [nested, 2, 0]
+        "4":
+          kind: Success
+          success_value:
+            short: |-
+              constraints = [
+                  # The person who owns a dog is directly left of Arnold.
+                  type_of_pet_dog == name_arnold - 1
+              ]
+            long: |-
+              ('constraints = [\n'
+               '    # The person who owns a dog is directly left of Arnold.\n'
+               '    type_of_pet_dog == name_arnold - 1\n'
+               ']')
+            json_provided: true
+            json: |-
+              constraints = [
+                  # The person who owns a dog is directly left of Arnold.
+                  type_of_pet_dog == name_arnold - 1
+              ]
+          summary_message: null
+          leaf_node: true
+          label: null
+          tags: []
+          properties: []
+          actions: []
+          origin: [child, 3, 0]
+        "5":
+          kind: Branch
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: FormalizeClue
+          tags: [FormalizeClue]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 4
+              - kind: query
+                name: FormalizeClue
+                args:
+                  context: |-
+                    There are 2 houses, numbered 1 to 2 from left to right, as seen from across 
+                    the street. Each house is occupied by a different person. Each house has a 
+                    unique attribute for each of the following characteristics:
+                    - Each person has a unique name: `Arnold`, `Eric`
+                    - People use unique phone models: `samsung galaxy s21`, `iphone 13`
+                    - Each person has a unique type of pet: `dog`, `cat`
+                  clue: The person who uses an iPhone 13 is the person who has a cat.
+                  previous_snippets:
+                    - |-
+                      constraints = [
+                          # The person who owns a dog is directly left of Arnold.
+                          type_of_pet_dog == name_arnold - 1
+                      ]
+                  variable_names:
+                    - name_arnold
+                    - name_eric
+                    - phone_models_samsung_galaxy_s21
+                    - phone_models_iphone_13
+                    - type_of_pet_dog
+                    - type_of_pet_cat
+                  step: 1
+                  prefix: []
+                tags: [FormalizeClue]
+                answers:
+                  - id: 3
+                    hint: null
+                    value:
+                      short: "Response(answer=Answer(mode=None, content='```python\\nconstraints = [\\n    # The person who uses an iPhone 13 is the person who has a cat.\\n    phone_models_iphone_13 == type_of_pet_cat\\n]\\n```', tool_calls=(), justification=None), parsed=FinalAnswer(final='constraints = [\\n    # The person who uses an iPhone 13 is the person who has a cat.\\n    phone_models_iphone_13 == type_of_pet_cat\\n]'))"
+                      long: |-
+                        Response(answer=Answer(mode=None,
+                                               content='```python\n'
+                                                       'constraints = [\n'
+                                                       '    # The person who uses an iPhone 13 is the '
+                                                       'person who has a cat.\n'
+                                                       '    phone_models_iphone_13 == type_of_pet_cat\n'
+                                                       ']\n'
+                                                       '```',
+                                               tool_calls=(),
+                                               justification=None),
+                                 parsed=FinalAnswer(final='constraints = [\n'
+                                                          '    # The person who uses an iPhone 13 is '
+                                                          'the person who has a cat.\n'
+                                                          '    phone_models_iphone_13 == '
+                                                          'type_of_pet_cat\n'
+                                                          ']'))
+                      json_provided: false
+                      json: null
+          actions:
+            - ref:
+                with_ids: $4{@3}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [3]
+              value:
+                short: "Response(answer=Answer(mode=None, content='```python\\nconstraints = [\\n    # The person who uses an iPhone 13 is the person who has a cat.\\n    phone_models_iphone_13 == type_of_pet_cat\\n]\\n```', tool_calls=(), justification=None), parsed=FinalAnswer(final='constraints = [\\n    # The person who uses an iPhone 13 is the person who has a cat.\\n    phone_models_iphone_13 == type_of_pet_cat\\n]'))"
+                long: |-
+                  Response(answer=Answer(mode=None,
+                                         content='```python\n'
+                                                 'constraints = [\n'
+                                                 '    # The person who uses an iPhone 13 is the '
+                                                 'person who has a cat.\n'
+                                                 '    phone_models_iphone_13 == type_of_pet_cat\n'
+                                                 ']\n'
+                                                 '```',
+                                         tool_calls=(),
+                                         justification=None),
+                           parsed=FinalAnswer(final='constraints = [\n'
+                                                    '    # The person who uses an iPhone 13 is '
+                                                    'the person who has a cat.\n'
+                                                    '    phone_models_iphone_13 == '
+                                                    'type_of_pet_cat\n'
+                                                    ']'))
+                json_provided: false
+                json: null
+              destination: 6
+          origin: [child, 2, 0]
+        "6":
+          kind: Run
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: check_and_add_constraints
+          tags: [check_and_add_constraints]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 5
+              - kind: nested
+                strategy: check_and_add_constraints
+                args:
+                  state:
+                    short: |-
+                      SolverState(solver=[name_arnold >= 1,
+                       name_arnold <= 2,
+                       Distinct(name_arnold),
+                       name_eric >= 1,
+                       name_eric <= 2,
+                       name_arnold != name_eric,
+                       phone_models_samsung_galaxy_s21 >= 1,
+                       phone_models_samsung_galaxy_s21 <= 2,
+                       Distinct(phone_models_samsung_galaxy_s21),
+                       phone_models_iphone_13 >= 1,
+                       phone_models_iphone_13 <= 2,
+                       phone_models_samsung_galaxy_s21 != phone_models_iphone_13,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       type_of_pet_dog == name_arnold - 1,
+                       phone_models_iphone_13 == type_of_pet_cat], z3vars_for_attr={'name': {'Arnold': name_arnold, 'Eric': name_eric}, 'phone_models': {'samsung galaxy s21': phone_models_samsung_galaxy_s21, 'iphone 13': phone_models_iphone_13}, 'type_of_pet': {'dog': type_of_pet_dog, 'cat': type_of_pet_cat}}, exec_global_vars={'num_houses': 2, 'solver': [name_arnold >= 1,
+                       name_arnold <= 2,
+                       Distinct(name_arnold),
+                       name_eric >= 1,
+                       name_eric <= 2,
+                       name_arnold != name_eric,
+                       phone_models_samsung_galaxy_s21 >= 1,
+                       phone_models_samsung_galaxy_s21 <= 2,
+                       Distinct(phone_models_samsung_galaxy_s21),
+                       phone_models_iphone_13 >= 1,
+                       phone_models_iphone_13 <= 2,
+                       phone_models_samsung_galaxy_s21 != phone_models_iphone_13,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       type_of_pet_dog == name_arnold - 1,
+                       phone_models_iphone_13 == type_of_pet_cat], 'z3': <module 'z3' from '/home/oguz/miniconda3/envs/delphyne/lib/python3.12/site-packages/z3/__init__.py'>, 'name_arnold': name_arnold, 'name_eric': name_eric, 'phone_models_samsung_galaxy_s21': phone_models_samsung_galaxy_s21, 'phone_models_iphone_13': phone_models_iphone_13, 'type_of_pet_dog': type_of_pet_dog, 'type_of_pet_cat': type_of_pet_cat, '__builtins__': {'__name__': 'builtins', '__doc__': "Built-in functions, types, exceptions, and other objects.\n\nThis module provides direct access to all 'built-in'\nidentifiers of Python; for example, builtins.len is\nthe full name for the built-in function len().\n\nThis module is not normally accessed explicitly by most\napplications, but can be useful in modules that provide\nobjects with the same name as a built-in value, but in\nwhich the built-in of that name is also needed.", '__package__': '', '__loader__': <class '_frozen_importlib.BuiltinImporter'>, '__spec__': ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>, origin='built-in'), '__build_class__': <built-in function __build_class__>, '__import__': <built-in function __import__>, 'abs': <built-in function abs>, 'all': <built-in function all>, 'any': <built-in function any>, 'ascii': <built-in function ascii>, 'bin': <built-in function bin>, 'breakpoint': <built-in function breakpoint>, 'callable': <built-in function callable>, 'chr': <built-in function chr>, 'compile': <built-in function compile>, 'delattr': <built-in function delattr>, 'dir': <built-in function dir>, 'divmod': <built-in function divmod>, 'eval': <built-in function eval>, 'exec': <built-in function exec>, 'format': <built-in function format>, 'getattr': <built-in function getattr>, 'globals': <built-in function globals>, 'hasattr': <built-in function hasattr>, 'hash': <built-in function hash>, 'hex': <built-in function hex>, 'id': <built-in function id>, 'input': <built-in function input>, 'isinstance': <built-in function isinstance>, 'issubclass': <built-in function issubclass>, 'iter': <built-in function iter>, 'aiter': <built-in function aiter>, 'len': <built-in function len>, 'locals': <built-in function locals>, 'max': <built-in function max>, 'min': <built-in function min>, 'next': <built-in function next>, 'anext': <built-in function anext>, 'oct': <built-in function oct>, 'ord': <built-in function ord>, 'pow': <built-in function pow>, 'print': <built-in function print>, 'repr': <built-in function repr>, 'round': <built-in function round>, 'setattr': <built-in function setattr>, 'sorted': <built-in function sorted>, 'sum': <built-in function sum>, 'vars': <built-in function vars>, 'None': None, 'Ellipsis': Ellipsis, 'NotImplemented': NotImplemented, 'False': False, 'True': True, 'bool': <class 'bool'>, 'memoryview': <class 'memoryview'>, 'bytearray': <class 'bytearray'>, 'bytes': <class 'bytes'>, 'classmethod': <class 'classmethod'>, 'complex': <class 'complex'>, 'dict': <class 'dict'>, 'enumerate': <class 'enumerate'>, 'filter': <class 'filter'>, 'float': <class 'float'>, 'frozenset': <class 'frozenset'>, 'property': <class 'property'>, 'int': <class 'int'>, 'list': <class 'list'>, 'map': <class 'map'>, 'object': <class 'object'>, 'range': <class 'range'>, 'reversed': <class 'reversed'>, 'set': <class 'set'>, 'slice': <class 'slice'>, 'staticmethod': <class 'staticmethod'>, 'str': <class 'str'>, 'super': <class 'super'>, 'tuple': <class 'tuple'>, 'type': <class 'type'>, 'zip': <class 'zip'>, '__debug__': True, 'BaseException': <class 'BaseException'>, 'BaseExceptionGroup': <class 'BaseExceptionGroup'>, 'Exception': <class 'Exception'>, 'GeneratorExit': <class 'GeneratorExit'>, 'KeyboardInterrupt': <class 'KeyboardInterrupt'>, 'SystemExit': <class 'SystemExit'>, 'ArithmeticError': <class 'ArithmeticError'>, 'AssertionError': <class 'AssertionError'>, 'AttributeError': <class 'AttributeError'>, 'BufferError': <class 'BufferError'>, 'EOFError': <class 'EOFError'>, 'ImportError': <class 'ImportError'>, 'LookupError': <class 'LookupError'>, 'MemoryError': <class 'MemoryError'>, 'NameError': <class 'NameError'>, 'OSError': <class 'OSError'>, 'ReferenceError': <class 'ReferenceError'>, 'RuntimeError': <class 'RuntimeError'>, 'StopAsyncIteration': <class 'StopAsyncIteration'>, 'StopIteration': <class 'StopIteration'>, 'SyntaxError': <class 'SyntaxError'>, 'SystemError': <class 'SystemError'>, 'TypeError': <class 'TypeError'>, 'ValueError': <class 'ValueError'>, 'Warning': <class 'Warning'>, 'FloatingPointError': <class 'FloatingPointError'>, 'OverflowError': <class 'OverflowError'>, 'ZeroDivisionError': <class 'ZeroDivisionError'>, 'BytesWarning': <class 'BytesWarning'>, 'DeprecationWarning': <class 'DeprecationWarning'>, 'EncodingWarning': <class 'EncodingWarning'>, 'FutureWarning': <class 'FutureWarning'>, 'ImportWarning': <class 'ImportWarning'>, 'PendingDeprecationWarning': <class 'PendingDeprecationWarning'>, 'ResourceWarning': <class 'ResourceWarning'>, 'RuntimeWarning': <class 'RuntimeWarning'>, 'SyntaxWarning': <class 'SyntaxWarning'>, 'UnicodeWarning': <class 'UnicodeWarning'>, 'UserWarning': <class 'UserWarning'>, 'BlockingIOError': <class 'BlockingIOError'>, 'ChildProcessError': <class 'ChildProcessError'>, 'ConnectionError': <class 'ConnectionError'>, 'FileExistsError': <class 'FileExistsError'>, 'FileNotFoundError': <class 'FileNotFoundError'>, 'InterruptedError': <class 'InterruptedError'>, 'IsADirectoryError': <class 'IsADirectoryError'>, 'NotADirectoryError': <class 'NotADirectoryError'>, 'PermissionError': <class 'PermissionError'>, 'ProcessLookupError': <class 'ProcessLookupError'>, 'TimeoutError': <class 'TimeoutError'>, 'IndentationError': <class 'IndentationError'>, 'IndexError': <class 'IndexError'>, 'KeyError': <class 'KeyError'>, 'ModuleNotFoundError': <class 'ModuleNotFoundError'>, 'NotImplementedError': <class 'NotImplementedError'>, 'RecursionError': <class 'RecursionError'>, 'UnboundLocalError': <class 'UnboundLocalError'>, 'UnicodeError': <class 'UnicodeError'>, 'BrokenPipeError': <class 'BrokenPipeError'>, 'ConnectionAbortedError': <class 'ConnectionAbortedError'>, 'ConnectionRefusedError': <class 'ConnectionRefusedError'>, 'ConnectionResetError': <class 'ConnectionResetError'>, 'TabError': <class 'TabError'>, 'UnicodeDecodeError': <class 'UnicodeDecodeError'>, 'UnicodeEncodeError': <class 'UnicodeEncodeError'>, 'UnicodeTranslateError': <class 'UnicodeTranslateError'>, 'ExceptionGroup': <class 'ExceptionGroup'>, 'EnvironmentError': <class 'OSError'>, 'IOError': <class 'OSError'>, 'open': <built-in function open>, 'quit': Use quit() or Ctrl-D (i.e. EOF) to exit, 'exit': Use exit() or Ctrl-D (i.e. EOF) to exit, 'copyright': Copyright (c) 2001-2023 Python Software Foundation.
+                      All Rights Reserved.
+
+                      Copyright (c) 2000 BeOpen.com.
+                      All Rights Reserved.
+
+                      Copyright (c) 1995-2001 Corporation for National Research Initiatives.
+                      All Rights Reserved.
+
+                      Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.
+                      All Rights Reserved., 'credits':     Thanks to CWI, CNRI, BeOpen, Zope Corporation, the Python Software
+                          Foundation, and a cast of thousands for supporting Python
+                          development.  See www.python.org for more information., 'license': Type license() to see the full license text, 'help': Type help() for interactive help, or help(object) for help about object.}}, variable_names=['name_arnold', 'name_eric', 'phone_models_samsung_galaxy_s21', 'phone_models_iphone_13', 'type_of_pet_dog', 'type_of_pet_cat'])
+                    long: |-
+                      SolverState(solver=[name_arnold >= 1,
+                       name_arnold <= 2,
+                       Distinct(name_arnold),
+                       name_eric >= 1,
+                       name_eric <= 2,
+                       name_arnold != name_eric,
+                       phone_models_samsung_galaxy_s21 >= 1,
+                       phone_models_samsung_galaxy_s21 <= 2,
+                       Distinct(phone_models_samsung_galaxy_s21),
+                       phone_models_iphone_13 >= 1,
+                       phone_models_iphone_13 <= 2,
+                       phone_models_samsung_galaxy_s21 != phone_models_iphone_13,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       type_of_pet_dog == name_arnold - 1,
+                       phone_models_iphone_13 == type_of_pet_cat], z3vars_for_attr={'name': {'Arnold': name_arnold, 'Eric': name_eric}, 'phone_models': {'samsung galaxy s21': phone_models_samsung_galaxy_s21, 'iphone 13': phone_models_iphone_13}, 'type_of_pet': {'dog': type_of_pet_dog, 'cat': type_of_pet_cat}}, exec_global_vars={'num_houses': 2, 'solver': [name_arnold >= 1,
+                       name_arnold <= 2,
+                       Distinct(name_arnold),
+                       name_eric >= 1,
+                       name_eric <= 2,
+                       name_arnold != name_eric,
+                       phone_models_samsung_galaxy_s21 >= 1,
+                       phone_models_samsung_galaxy_s21 <= 2,
+                       Distinct(phone_models_samsung_galaxy_s21),
+                       phone_models_iphone_13 >= 1,
+                       phone_models_iphone_13 <= 2,
+                       phone_models_samsung_galaxy_s21 != phone_models_iphone_13,
+                       type_of_pet_dog >= 1,
+                       type_of_pet_dog <= 2,
+                       Distinct(type_of_pet_dog),
+                       type_of_pet_cat >= 1,
+                       type_of_pet_cat <= 2,
+                       type_of_pet_dog != type_of_pet_cat,
+                       type_of_pet_dog == name_arnold - 1,
+                       phone_models_iphone_13 == type_of_pet_cat], 'z3': <module 'z3' from '/home/oguz/miniconda3/envs/delphyne/lib/python3.12/site-packages/z3/__init__.py'>, 'name_arnold': name_arnold, 'name_eric': name_eric, 'phone_models_samsung_galaxy_s21': phone_models_samsung_galaxy_s21, 'phone_models_iphone_13': phone_models_iphone_13, 'type_of_pet_dog': type_of_pet_dog, 'type_of_pet_cat': type_of_pet_cat, '__builtins__': {'__name__': 'builtins', '__doc__': "Built-in functions, types, exceptions, and other objects.\n\nThis module provides direct access to all 'built-in'\nidentifiers of Python; for example, builtins.len is\nthe full name for the built-in function len().\n\nThis module is not normally accessed explicitly by most\napplications, but can be useful in modules that provide\nobjects with the same name as a built-in value, but in\nwhich the built-in of that name is also needed.", '__package__': '', '__loader__': <class '_frozen_importlib.BuiltinImporter'>, '__spec__': ModuleSpec(name='builtins', loader=<class '_frozen_importlib.BuiltinImporter'>, origin='built-in'), '__build_class__': <built-in function __build_class__>, '__import__': <built-in function __import__>, 'abs': <built-in function abs>, 'all': <built-in function all>, 'any': <built-in function any>, 'ascii': <built-in function ascii>, 'bin': <built-in function bin>, 'breakpoint': <built-in function breakpoint>, 'callable': <built-in function callable>, 'chr': <built-in function chr>, 'compile': <built-in function compile>, 'delattr': <built-in function delattr>, 'dir': <built-in function dir>, 'divmod': <built-in function divmod>, 'eval': <built-in function eval>, 'exec': <built-in function exec>, 'format': <built-in function format>, 'getattr': <built-in function getattr>, 'globals': <built-in function globals>, 'hasattr': <built-in function hasattr>, 'hash': <built-in function hash>, 'hex': <built-in function hex>, 'id': <built-in function id>, 'input': <built-in function input>, 'isinstance': <built-in function isinstance>, 'issubclass': <built-in function issubclass>, 'iter': <built-in function iter>, 'aiter': <built-in function aiter>, 'len': <built-in function len>, 'locals': <built-in function locals>, 'max': <built-in function max>, 'min': <built-in function min>, 'next': <built-in function next>, 'anext': <built-in function anext>, 'oct': <built-in function oct>, 'ord': <built-in function ord>, 'pow': <built-in function pow>, 'print': <built-in function print>, 'repr': <built-in function repr>, 'round': <built-in function round>, 'setattr': <built-in function setattr>, 'sorted': <built-in function sorted>, 'sum': <built-in function sum>, 'vars': <built-in function vars>, 'None': None, 'Ellipsis': Ellipsis, 'NotImplemented': NotImplemented, 'False': False, 'True': True, 'bool': <class 'bool'>, 'memoryview': <class 'memoryview'>, 'bytearray': <class 'bytearray'>, 'bytes': <class 'bytes'>, 'classmethod': <class 'classmethod'>, 'complex': <class 'complex'>, 'dict': <class 'dict'>, 'enumerate': <class 'enumerate'>, 'filter': <class 'filter'>, 'float': <class 'float'>, 'frozenset': <class 'frozenset'>, 'property': <class 'property'>, 'int': <class 'int'>, 'list': <class 'list'>, 'map': <class 'map'>, 'object': <class 'object'>, 'range': <class 'range'>, 'reversed': <class 'reversed'>, 'set': <class 'set'>, 'slice': <class 'slice'>, 'staticmethod': <class 'staticmethod'>, 'str': <class 'str'>, 'super': <class 'super'>, 'tuple': <class 'tuple'>, 'type': <class 'type'>, 'zip': <class 'zip'>, '__debug__': True, 'BaseException': <class 'BaseException'>, 'BaseExceptionGroup': <class 'BaseExceptionGroup'>, 'Exception': <class 'Exception'>, 'GeneratorExit': <class 'GeneratorExit'>, 'KeyboardInterrupt': <class 'KeyboardInterrupt'>, 'SystemExit': <class 'SystemExit'>, 'ArithmeticError': <class 'ArithmeticError'>, 'AssertionError': <class 'AssertionError'>, 'AttributeError': <class 'AttributeError'>, 'BufferError': <class 'BufferError'>, 'EOFError': <class 'EOFError'>, 'ImportError': <class 'ImportError'>, 'LookupError': <class 'LookupError'>, 'MemoryError': <class 'MemoryError'>, 'NameError': <class 'NameError'>, 'OSError': <class 'OSError'>, 'ReferenceError': <class 'ReferenceError'>, 'RuntimeError': <class 'RuntimeError'>, 'StopAsyncIteration': <class 'StopAsyncIteration'>, 'StopIteration': <class 'StopIteration'>, 'SyntaxError': <class 'SyntaxError'>, 'SystemError': <class 'SystemError'>, 'TypeError': <class 'TypeError'>, 'ValueError': <class 'ValueError'>, 'Warning': <class 'Warning'>, 'FloatingPointError': <class 'FloatingPointError'>, 'OverflowError': <class 'OverflowError'>, 'ZeroDivisionError': <class 'ZeroDivisionError'>, 'BytesWarning': <class 'BytesWarning'>, 'DeprecationWarning': <class 'DeprecationWarning'>, 'EncodingWarning': <class 'EncodingWarning'>, 'FutureWarning': <class 'FutureWarning'>, 'ImportWarning': <class 'ImportWarning'>, 'PendingDeprecationWarning': <class 'PendingDeprecationWarning'>, 'ResourceWarning': <class 'ResourceWarning'>, 'RuntimeWarning': <class 'RuntimeWarning'>, 'SyntaxWarning': <class 'SyntaxWarning'>, 'UnicodeWarning': <class 'UnicodeWarning'>, 'UserWarning': <class 'UserWarning'>, 'BlockingIOError': <class 'BlockingIOError'>, 'ChildProcessError': <class 'ChildProcessError'>, 'ConnectionError': <class 'ConnectionError'>, 'FileExistsError': <class 'FileExistsError'>, 'FileNotFoundError': <class 'FileNotFoundError'>, 'InterruptedError': <class 'InterruptedError'>, 'IsADirectoryError': <class 'IsADirectoryError'>, 'NotADirectoryError': <class 'NotADirectoryError'>, 'PermissionError': <class 'PermissionError'>, 'ProcessLookupError': <class 'ProcessLookupError'>, 'TimeoutError': <class 'TimeoutError'>, 'IndentationError': <class 'IndentationError'>, 'IndexError': <class 'IndexError'>, 'KeyError': <class 'KeyError'>, 'ModuleNotFoundError': <class 'ModuleNotFoundError'>, 'NotImplementedError': <class 'NotImplementedError'>, 'RecursionError': <class 'RecursionError'>, 'UnboundLocalError': <class 'UnboundLocalError'>, 'UnicodeError': <class 'UnicodeError'>, 'BrokenPipeError': <class 'BrokenPipeError'>, 'ConnectionAbortedError': <class 'ConnectionAbortedError'>, 'ConnectionRefusedError': <class 'ConnectionRefusedError'>, 'ConnectionResetError': <class 'ConnectionResetError'>, 'TabError': <class 'TabError'>, 'UnicodeDecodeError': <class 'UnicodeDecodeError'>, 'UnicodeEncodeError': <class 'UnicodeEncodeError'>, 'UnicodeTranslateError': <class 'UnicodeTranslateError'>, 'ExceptionGroup': <class 'ExceptionGroup'>, 'EnvironmentError': <class 'OSError'>, 'IOError': <class 'OSError'>, 'open': <built-in function open>, 'quit': Use quit() or Ctrl-D (i.e. EOF) to exit, 'exit': Use exit() or Ctrl-D (i.e. EOF) to exit, 'copyright': Copyright (c) 2001-2023 Python Software Foundation.
+                      All Rights Reserved.
+
+                      Copyright (c) 2000 BeOpen.com.
+                      All Rights Reserved.
+
+                      Copyright (c) 1995-2001 Corporation for National Research Initiatives.
+                      All Rights Reserved.
+
+                      Copyright (c) 1991-1995 Stichting Mathematisch Centrum, Amsterdam.
+                      All Rights Reserved., 'credits':     Thanks to CWI, CNRI, BeOpen, Zope Corporation, the Python Software
+                          Foundation, and a cast of thousands for supporting Python
+                          development.  See www.python.org for more information., 'license': Type license() to see the full license text, 'help': Type help() for interactive help, or help(object) for help about object.}}, variable_names=['name_arnold', 'name_eric', 'phone_models_samsung_galaxy_s21', 'phone_models_iphone_13', 'type_of_pet_dog', 'type_of_pet_cat'])
+                    json_provided: false
+                    json: null
+                  snippet:
+                    short: |-
+                      constraints = [
+                          # The person who uses an iPhone 13 is the person who has a cat.
+                          phone_models_iphone_13 == type_of_pet_cat
+                      ]
+                    long: |-
+                      ('constraints = [\n'
+                       '    # The person who uses an iPhone 13 is the person who has a cat.\n'
+                       '    phone_models_iphone_13 == type_of_pet_cat\n'
+                       ']')
+                    json_provided: true
+                    json: |-
+                      constraints = [
+                          # The person who uses an iPhone 13 is the person who has a cat.
+                          phone_models_iphone_13 == type_of_pet_cat
+                      ]
+                  step_idx:
+                    short: "1"
+                    long: "1"
+                    json_provided: true
+                    json: 1
+                  total_steps:
+                    short: "2"
+                    long: "2"
+                    json_provided: true
+                    json: 2
+                  code_history:
+                    short: "['constraints = [\\n    # The person who owns a dog is directly left of Arnold.\\n    type_of_pet_dog == name_arnold - 1\\n]']"
+                    long: |-
+                      ['constraints = [\n'
+                       '    # The person who owns a dog is directly left of Arnold.\n'
+                       '    type_of_pet_dog == name_arnold - 1\n'
+                       ']']
+                    json_provided: true
+                    json:
+                      - |-
+                        constraints = [
+                            # The person who owns a dog is directly left of Arnold.
+                            type_of_pet_dog == name_arnold - 1
+                        ]
+                tags: [check_and_add_constraints]
+                node_id: 7
+          actions:
+            - ref:
+                with_ids: $5{%9}
+                with_hints: null
+              hints: null
+              related_success_nodes: [9]
+              related_answers: []
+              value:
+                short: "[['1', 'Eric', 'samsung galaxy s21', 'dog'], ['2', 'Arnold', 'iphone 13', 'cat']]"
+                long: |-
+                  [['1', 'Eric', 'samsung galaxy s21', 'dog'],
+                   ['2', 'Arnold', 'iphone 13', 'cat']]
+                json_provided: true
+                json:
+                  - ["1", Eric, samsung galaxy s21, dog]
+                  - ["2", Arnold, iphone 13, cat]
+              destination: 10
+          origin: [child, 5, 0]
+        "7":
+          kind: Compute
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: null
+          tags: []
+          properties:
+            - - with_ids: query
+                with_hints: null
+              - 6
+              - kind: query
+                name: __Computation__
+                args:
+                  fun: single_smt_call
+                  args:
+                    snippets:
+                      - |-
+                        constraints = [
+                            # The person who owns a dog is directly left of Arnold.
+                            type_of_pet_dog == name_arnold - 1
+                        ]
+                      - |-
+                        constraints = [
+                            # The person who uses an iPhone 13 is the person who has a cat.
+                            phone_models_iphone_13 == type_of_pet_cat
+                        ]
+                tags: [__Computation__]
+                answers:
+                  - id: 4
+                    hint: null
+                    value:
+                      short: sat
+                      long: "'sat'"
+                      json_provided: true
+                      json: sat
+          actions:
+            - ref:
+                with_ids: $6{@4}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [4]
+              value:
+                short: sat
+                long: "'sat'"
+                json_provided: true
+                json: sat
+              destination: 8
+          origin: [nested, 6, 0]
+        "8":
+          kind: Compute
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: null
+          tags: []
+          properties:
+            - - with_ids: query
+                with_hints: null
+              - 7
+              - kind: query
+                name: __Computation__
+                args:
+                  fun: final_smt_call
+                  args:
+                    snippets:
+                      - |-
+                        constraints = [
+                            # The person who owns a dog is directly left of Arnold.
+                            type_of_pet_dog == name_arnold - 1
+                        ]
+                      - |-
+                        constraints = [
+                            # The person who uses an iPhone 13 is the person who has a cat.
+                            phone_models_iphone_13 == type_of_pet_cat
+                        ]
+                tags: [__Computation__]
+                answers:
+                  - id: 5
+                    hint: null
+                    value:
+                      short: "[['1', 'Eric', 'samsung galaxy s21', 'dog'], ['2', 'Arnold', 'iphone 13', 'cat']]"
+                      long: |-
+                        [['1', 'Eric', 'samsung galaxy s21', 'dog'],
+                         ['2', 'Arnold', 'iphone 13', 'cat']]
+                      json_provided: true
+                      json:
+                        - ["1", Eric, samsung galaxy s21, dog]
+                        - ["2", Arnold, iphone 13, cat]
+          actions:
+            - ref:
+                with_ids: $7{@5}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [5]
+              value:
+                short: "[['1', 'Eric', 'samsung galaxy s21', 'dog'], ['2', 'Arnold', 'iphone 13', 'cat']]"
+                long: |-
+                  [['1', 'Eric', 'samsung galaxy s21', 'dog'],
+                   ['2', 'Arnold', 'iphone 13', 'cat']]
+                json_provided: true
+                json:
+                  - ["1", Eric, samsung galaxy s21, dog]
+                  - ["2", Arnold, iphone 13, cat]
+              destination: 9
+          origin: [child, 7, 0]
+        "9":
+          kind: Success
+          success_value:
+            short: "[['1', 'Eric', 'samsung galaxy s21', 'dog'], ['2', 'Arnold', 'iphone 13', 'cat']]"
+            long: |-
+              [['1', 'Eric', 'samsung galaxy s21', 'dog'],
+               ['2', 'Arnold', 'iphone 13', 'cat']]
+            json_provided: true
+            json:
+              - ["1", Eric, samsung galaxy s21, dog]
+              - ["2", Arnold, iphone 13, cat]
+          summary_message: null
+          leaf_node: true
+          label: null
+          tags: []
+          properties: []
+          actions: []
+          origin: [child, 8, 0]
+        "10":
+          kind: Success
+          success_value:
+            short: "[['1', 'Eric', 'samsung galaxy s21', 'dog'], ['2', 'Arnold', 'iphone 13', 'cat']]"
+            long: |-
+              [['1', 'Eric', 'samsung galaxy s21', 'dog'],
+               ['2', 'Arnold', 'iphone 13', 'cat']]
+            json_provided: true
+            json:
+              - ["1", Eric, samsung galaxy s21, dog]
+              - ["2", Arnold, iphone 13, cat]
+          summary_message: null
+          leaf_node: true
+          label: null
+          tags: []
+          properties: []
+          actions: []
+          origin: [child, 6, 0]
+      spaces:
+        "1": [1, 0]
+        "2": [2, 0]
+        "3": [3, 0]
+        "4": [5, 0]
+        "5": [6, 0]
+        "6": [7, 0]
+        "7": [8, 0]

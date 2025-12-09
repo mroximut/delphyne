@@ -1,0 +1,23 @@
+
+command: run_strategy
+args:
+  strategy: zebra_baseline
+  args:
+    puzzle: | 
+     There are 2 houses, numbered 1 to 2 from left to right, as seen from across 
+     the street. Each house is occupied by a different person. Each house has a 
+     unique attribute for each of the following characteristics:
+     - Each person has a unique name: `Arnold`, `Eric`
+     - People use unique phone models: `samsung galaxy s21`, `iphone 13`
+     - Each person has a unique type of pet: `dog`, `cat`
+
+     ## Clues:
+     1. The person who owns a dog is directly left of Arnold.
+     2. The person who uses an iPhone 13 is the person who has a cat.
+    puzzle_id: "lgp-test-2x3-36"
+  policy: zebra_baseline_policy
+  policy_args: {}
+  using:
+    - demo: demos/zebra_baseline.demo.yaml:zebra_simple
+  budget:
+    num_requests: 4

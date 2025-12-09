@@ -1,4 +1,5 @@
-- strategy: zebra_baseline
+- demonstration: zebra_simple
+  strategy: zebra_baseline
   args: 
     puzzle: | 
       There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each
@@ -66,3 +67,54 @@
               z3.Not(type_of_pet_dog == 1)
             ]
             ```
+    - query: __Computation__
+      args:
+        fun: single_smt_call
+        args:
+          snippets:
+            - |-
+              constraints = [
+                name_eric < name_arnold
+              ]
+      answers:
+        - answer: |
+            sat
+            ...
+    - query: __Computation__
+      args:
+        fun: single_smt_call
+        args:
+          snippets:
+            - |-
+              constraints = [
+                name_eric < name_arnold
+              ]
+            - |-
+              constraints = [
+                z3.Not(type_of_pet_dog == 1)
+              ]
+      answers:
+        - answer: |
+            sat
+            ...
+    - query: __Computation__
+      args:
+        fun: final_smt_call
+        args:
+          snippets:
+            - |-
+              constraints = [
+                name_eric < name_arnold
+              ]
+            - |-
+              constraints = [
+                z3.Not(type_of_pet_dog == 1)
+              ]
+      answers:
+        - answer: |
+            - - '1'
+              - Eric
+              - cat
+            - - '2'
+              - Arnold
+              - dog

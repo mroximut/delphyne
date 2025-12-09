@@ -54,6 +54,12 @@ class FormalizeClue(dp.Query[dp.Response[str, Never]]):
     `previous_snippets` are used for formalizing previous clues, and `step`
     indicates the index of the current clue being formalized (0-based).
 
+    You should not additionally fix concrete positions unless implied by previous
+    steps. Therefore, provide only the direct mapping constraint without forcing
+    a specific house number for some variable. For example use `var_a == var_b
+    + 1` instead of `z3.And(var_ b == 1, var_a == 2)` if the clue indicates that
+    `var_a` is directly to the right of `var_b`.
+
     Return Python code wrapped in a triple-backtick block. The code must define
     a list named `constraints` containing z3.BoolRef (if there is only one
     constraint, then it is a one-element list) capturing only the information
@@ -208,7 +214,7 @@ def check_and_add_constraints(
 def zebra_baseline_policy(
     model_name: dp.StandardModelName = "gpt-5-nano",
 ) -> dp.Policy[Branch | Fail, ZebraBaselineIP]:
-    model = dp.standard_model(model_name)
+    model = dp.standard_model(model_name, {"reasoning_effort": "minimal"})
     return dp.dfs() & ZebraBaselineIP(formalize=dp.few_shot(model))
 
 
@@ -247,7 +253,9 @@ if __name__ == "__main__":
         zebra_baseline(example_puzzle, puzzle_id)
         .run_toplevel(
             dp.PolicyEnv(
-                demonstration_files=[],
+                demonstration_files=[
+                    Path(__file__).parent / "baseline.demo.yaml"
+                ],
                 prompt_dirs=[Path(__file__).parent / "prompts"],
             ),
             zebra_baseline_policy(),
