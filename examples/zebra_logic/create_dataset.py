@@ -11,7 +11,8 @@ First, download the dataset from Hugging Face with the command:
 Then, run this script to convert the Parquet files to CSV format.
 """
 
-if __name__ == "__main__":
+
+def create_zebra_dataset():
     df = pd.read_parquet(
         "examples/zebra_logic/datasets--allenai--ZebraLogicBench-private/snapshots/"
         "9f39ef490ae924437376657205025f26c0bd1af3/grid_mode/test-00000-of-00001"
@@ -38,3 +39,23 @@ if __name__ == "__main__":
         "zebra_logic_bench_solutions.csv",
         index=False,
     )
+
+
+def create_folio_dataset():
+    splits = {
+        "train": "folio_v2_train.jsonl",
+        "validation": "folio_v2_validation.jsonl",
+    }
+    df = pd.read_json(
+        "hf://datasets/yale-nlp/FOLIO/" + splits["train"], lines=True
+    )
+    df.to_csv(
+        "examples/zebra_logic/datasets--yale-nlp--FOLIO/folio_v2_train.csv",
+        index=False,
+    )
+
+
+if __name__ == "__main__":
+    # create_zebra_dataset()
+    # create_folio_dataset()
+    pass

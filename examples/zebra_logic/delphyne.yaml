@@ -1,4 +1,5 @@
 strategy_dirs: ["."]
 prompt_dirs: ["prompts"]
 modules:
-  - "baseline"
+  - "zebra_baseline"
+  - "folio_baseline"
