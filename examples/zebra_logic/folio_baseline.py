@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Never, assert_never
 
+import pandas as pd
 from z3_tools import Z3Response, run_fol_in_z3
 
 import delphyne as dp
@@ -12,9 +13,18 @@ from delphyne import Branch, Compute, Fail, Strategy, strategy
 
 SOLUTIONS_CSV: Path = (
     Path(__file__).resolve().parent
-    / "datasets--yale--nlp--FOLIO"
+    / "datasets--yale-nlp--FOLIO"
     / "folio_v2_train.csv"
 )
+
+
+def ensure_solution(puzzle_id: int, solution: bool) -> bool:
+    df = pd.read_csv(SOLUTIONS_CSV)  #  type: ignore
+    ground_truth = (
+        df.loc[df["example_id"] == puzzle_id, "label"].values[0] == "True"
+    )  #  type: ignore
+    assert isinstance(ground_truth, bool)
+    return ground_truth == solution
 
 
 @dataclass
@@ -71,8 +81,10 @@ class FormalizeFOLConstraint(dp.Query[dp.Response[str, Never]]):
       - And: conjunction (e.g., And(P, Q)) (exactly 2 arguments)
       - Or: disjunction (e.g., Or(P, Q)) (exactly 2 arguments)
       - Not: negation (e.g., Not(P)) (exactly 1 argument)
-      - Implies: implication (e.g., Implies(P, Q)) (exactly 2 arguments)
       - Xor: exclusive or (e.g., Xor(P, Q)) (exactly 2 arguments)
+      - Implies: implication (e.g., Implies(P, Q)) (exactly 2 arguments)
+      - Iff: biconditional (e.g., Iff(P, Q)) (exactly 2 arguments)
+      - Equals: equality (e.g., Equals(x, y)) (exactly 2 arguments)
     - Quantifiers include:
       - ForAll: universal quantification (e.g., ForAll(x, P(x))) (exactly 2 arguments)
       - Exists: existential quantification (e.g., Exists(x, P(x))) (exactly 2 arguments)
@@ -147,6 +159,9 @@ def folio_baseline(
                 solution = formalization_response.status == "unsat"
             break
 
+    if puzzle_id is not None and solution is not None:
+        yield from dp.ensure(ensure_solution(puzzle_id, solution))
+
     return solution
 
 
@@ -163,6 +178,22 @@ def check_and_add_constraints(
             label="fol_interpretation_error",
             meta={
                 "error": response.error,
+                "formalization_yaml": formalization_yaml,
+            },
+        )
+    if response.status == "unknown":
+        return dp.Error(
+            label="fol_unknown_result",
+            meta={
+                "error": "The FOL interpretation resulted in an unknown status in Z3.",
+                "formalization_yaml": formalization_yaml,
+            },
+        )
+    if step_type == "Constraint" and response.status == "unsat":
+        return dp.Error(
+            label="fol_inconsistent_constraints",
+            meta={
+                "error": "The provided constraints are inconsistent.",
                 "formalization_yaml": formalization_yaml,
             },
         )
@@ -184,7 +215,7 @@ if __name__ == "__main__":
     example_puzzle = """
         All humans are mortal.
         Socrates is a human.
-        Is Socrates mortal?
+        Conclusion: Socrates is mortal.
     """
 
     budget = dp.BudgetLimit({dp.NUM_REQUESTS: 4})
@@ -199,4 +230,4 @@ if __name__ == "__main__":
         )
         .collect(budget=budget, num_generated=1)
     )
-    print(res)
+    print(res[0].tracked.value)

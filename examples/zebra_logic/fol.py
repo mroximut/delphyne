@@ -57,6 +57,12 @@ class Xor:
 
 
 @dataclass(frozen=True)
+class Iff:
+    left: "Formula"
+    right: "Formula"
+
+
+@dataclass(frozen=True)
 class Implies:
     antecedent: "Formula"
     consequent: "Formula"
@@ -82,7 +88,7 @@ class PredicateDef:
 
 
 type Formula = (
-    Predicate | Not | And | Or | Xor | Equals | Implies | ForAll | Exists
+    Predicate | Not | And | Or | Xor | Equals | Implies | ForAll | Exists | Iff
 )
 
 
@@ -151,7 +157,7 @@ class FOLParser:
                 return Not(sub)
 
             # Binary connectives and equality: And, Or, Xor, Implies, Equals
-            if fun in {"And", "Or", "Xor", "Implies", "Equals"}:
+            if fun in {"And", "Or", "Xor", "Implies", "Equals", "Iff"}:
                 if len(node.args) != 2:
                     raise ValueError(f"{fun} expects 2 arguments")
                 left_node, right_node = node.args
@@ -178,6 +184,8 @@ class FOLParser:
                     return Xor(left_formula, right_formula)
                 if fun == "Implies":
                     return Implies(left_formula, right_formula)
+                if fun == "Iff":
+                    return Iff(left_formula, right_formula)
 
             # Predicate application: P(t1, ..., tn)
             predicate_arity: Dict[str, int] = {
@@ -275,7 +283,7 @@ class Z3Interpreter:
     ) -> z3.FuncDeclRef:
         """Register a predicate in Z3 as an uninterpreted function."""
         if context.get(predicate.name) is not None:
-            print(f"Predicate '{predicate.name}' already registered.")
+            # print(f"Predicate '{predicate.name}' already registered.")
             return context[predicate.name]
 
         obj_sort: z3.SortRef = context["__sort__"]
@@ -294,7 +302,7 @@ class Z3Interpreter:
     ) -> z3.ExprRef:
         """Register a constant in Z3 as a z3 constant."""
         if context.get(constant) is not None:
-            print(f"Constant '{constant}' already registered.")
+            # print(f"Constant '{constant}' already registered.")
             return context[constant]
 
         obj_sort: z3.SortRef = context["__sort__"]
@@ -355,6 +363,9 @@ class Z3Interpreter:
                 case Exists(variable, body=body):
                     v = term_to_z3(variable)
                     return z3.Exists([v], go(body))  # type: ignore
+
+                case Iff(left=left, right=right):
+                    return go(left) == go(right)  # type: ignore
 
                 case _:
                     assert_never(f)
