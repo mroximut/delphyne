@@ -86,6 +86,9 @@ class PredicateDef:
     arity: int
     arg_sorts: List[str] | None = None
 
+    __eq__ = lambda self: self.name  # type: ignore
+    __hash__ = lambda self: hash(self.name)  # type: ignore
+
 
 type Formula = (
     Predicate | Not | And | Or | Xor | Equals | Implies | ForAll | Exists | Iff
@@ -230,8 +233,8 @@ class YamlListParser:
     ) -> Tuple[Set[PredicateDef], Set[str], List[Formula], List[Formula]]:
         data = yaml.safe_load(yaml_text)
         # Parse predicate declarations of the form "Name(Arity)"
-        predicates: Set[PredicateDef] = set(previous_predicates)
-        constants: Set[str] = set(previous_constants)
+        new_predicates: Set[PredicateDef] = set()
+        new_constants: Set[str] = set()
 
         if "Predicates" in data:
             for p in data.get("Predicates", []):
@@ -242,9 +245,19 @@ class YamlListParser:
                         f"Predicate must be a string, got {type(p)}: {p!r}"
                     )
                 name, arity = p.split("(")
-                predicates.add(
-                    PredicateDef(name=name, arity=int(arity[:-1]))
-                )  # remove trailing ')'
+                for pred in previous_predicates:
+                    if pred.name == name:
+                        if pred.arity != int(arity[:-1]):
+                            raise ValueError(
+                                f"Predicate '{name}' already declared with "
+                                f"arity {pred.arity}, got conflicting arity "
+                                f"{arity[:-1]}"
+                            )
+                        break
+                else:
+                    new_predicates.add(
+                        PredicateDef(name=name, arity=int(arity[:-1]))
+                    )  # remove trailing ')'
 
         if "Constants" in data:
             for c in data.get("Constants", []):
@@ -254,10 +267,13 @@ class YamlListParser:
                     raise TypeError(
                         f"Constant must be a string, got {type(c)}: {c!r}"
                     )
-                constants.add(c)
+                if c not in previous_constants:
+                    new_constants.add(c)
 
         formulae: List[Formula] = []
         conclusion: List[Formula] = []
+        predicates = previous_predicates | new_predicates
+        constants = previous_constants | new_constants
 
         if "Constraints" in data:
             formulae = [
@@ -273,7 +289,7 @@ class YamlListParser:
                 if r is not None
             ]
 
-        return predicates, constants, formulae, conclusion
+        return new_predicates, new_constants, formulae, conclusion
 
 
 class Z3Interpreter:
@@ -282,9 +298,6 @@ class Z3Interpreter:
         predicate: PredicateDef, context: Dict[str, Any]
     ) -> z3.FuncDeclRef:
         """Register a predicate in Z3 as an uninterpreted function."""
-        if context.get(predicate.name) is not None:
-            # print(f"Predicate '{predicate.name}' already registered.")
-            return context[predicate.name]
 
         obj_sort: z3.SortRef = context["__sort__"]
         arg_sorts = [obj_sort] * predicate.arity
@@ -301,9 +314,6 @@ class Z3Interpreter:
         constant: str, context: Dict[str, Any]
     ) -> z3.ExprRef:
         """Register a constant in Z3 as a z3 constant."""
-        if context.get(constant) is not None:
-            # print(f"Constant '{constant}' already registered.")
-            return context[constant]
 
         obj_sort: z3.SortRef = context["__sort__"]
         const = z3.Const(constant, obj_sort)  # type: ignore
