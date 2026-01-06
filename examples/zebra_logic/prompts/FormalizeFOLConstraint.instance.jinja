@@ -1,0 +1,23 @@
+Previous formalizations are:
+
+```
+{{ query.previous_formalizations | join("\n\n") }}
+```
+
+Current step: {{ query.step }}
+
+Sentence to formalize
+```
+{{ query.sentence }}
+```
+
+{% if query.blacklist %}
+the formalization must be semantically different from the ones 
+below:
+```
+{{ query.blacklist | join("\n\n") }}
+```
+{% endif %}
+
+Your task is to provide the formalization in the specified YAML
+format.

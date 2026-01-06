@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Never, assert_never
+from typing import Literal, Never, Sequence
 
 import pandas as pd
 from z3_tools import Z3Response, run_fol_in_z3
@@ -25,78 +25,16 @@ def ensure_solution(puzzle_id: int, solution: bool) -> bool:
 
 
 type StepType = Literal["Constraint", "Conclusion", "All"]
+type Blacklist = Sequence[str | Z3Response]
 
 
 @dataclass
 class FormalizeFOLConstraint(dp.Query[dp.Response[str, Never]]):
-    """
-    Given a `sentence` in natural language, convert it into a first-order logic
-    representation using the following YAML format with sections for
-    "Predicates", "Constants", and either "Constraints" or "Conclusion".
-    The "Predicates" section in the response contains the predicate definitions
-    in the form "Predicate(Arity)", the constants section contains the list of
-    constants used in the formulae, and the "Constraints" or "Conclusion"
-    sections contain the actual formalized FOL formulae.
-    If it is a "Conclusion" (in that case `sentence` starts with "Conclusion:"), do not
-    include a "Constraints" section. If it is a "Constraint" (in that case `sentence` does
-    not start with "Conclusion:"), do not include a "Conclusion" section.
-    Use previously defined predicates and constants as needed. Make sure to include
-    all predicates and constants used in the current formalization in the
-    respective sections. If a predicate or constant is already defined in the
-    previous formalizations, make sure you are consistent with the existing
-    definition.
-    For that, the `previous_formalizations` that I provide to you contains the FOL
-    formalizations of previous sentences in the same context, and `step`
-    indicates if the current sentence is a "Constraint" or a "Conclusion".
-    Do not include `previous_formalizations` or `step` as sections in your YAML
-    response. These are only provided for your context.
-    Always end your answer with a triple backticks block containing the
-    YAML formalization, also in the case if I respond with some error message.
-    List values under a key must be indented. For example a response for a
-    sentence that is not a "Conclusion" should look like:
-    ```yaml
-    Predicates:
-    - Predicate1(2)
-    - Predicate2(1)
-    Constants:
-    - Constant1
-    - Constant2
-    Constraints:
-    - ForAll(x, Predicate1(x, Constant1))
-    - Implies(Predicate2(Constant2), Exists(y, Predicate1(y, Constant2)))
-    ```
-    If e.g. Constants is empty, still include the section as:
-    ```yaml
-    Constants:
-    -
-    ```
-    The syntax for FOL is as follows and nothing else:
-    - Bounded variables are represented by lowercase letters (e.g., x, y, z).
-    - Constants are represented by capitalized words (e.g., Socrates, Alice).
-    - Predicates are represented by their name followed by their arguments in
-      parentheses (e.g., Human(x), Loves(Alice, Bob)). Each predicate must
-      include its arity in the "Predicates" section and respect that arity in
-      its usage.
-    - Logical connectives include:
-      - And: conjunction (e.g., And(P, Q)) (exactly 2 arguments)
-      - Or: disjunction (e.g., Or(P, Q)) (exactly 2 arguments)
-      - Not: negation (e.g., Not(P)) (exactly 1 argument)
-      - Xor: exclusive or (e.g., Xor(P, Q)) (exactly 2 arguments)
-      - Implies: implication (e.g., Implies(P, Q)) (exactly 2 arguments)
-      - Iff: biconditional (e.g., Iff(P, Q)) (exactly 2 arguments)
-      - Equals: equality (e.g., Equals(x, y)) (exactly 2 arguments)
-    - Quantifiers include:
-      - ForAll: universal quantification (e.g., ForAll(x, P(x))) (exactly 2 arguments)
-      - Exists: existential quantification (e.g., Exists(x, P(x))) (exactly 2 arguments)
-
-    Tips:
-    - "Either P or Q" means Xor(P, Q).
-    """
-
     sentence: str
     previous_formalizations: list[str]
     step: StepType
-    prefix: dp.AnswerPrefix
+    prefix: dp.AnswerPrefix | None = None
+    blacklist: Blacklist | None = None
 
     __parser__ = dp.last_code_block.trim.response
 
@@ -120,12 +58,13 @@ class FormalizeFOLOneShot(dp.Query[dp.Response[str, Never]]):
     formalize it under "Conclusion" section. If it is a "Constraint" (in that case
     `sentence` does not start with "Conclusion:"), formalize it under "Constraints" section.
     Use previously defined predicates and constants as needed. Make sure to include
-    all predicates and constants used in the current formalization in the
+    all predicates and constants used in the formalization of the current sentence in the
     respective sections. If a predicate or constant is already defined in the
     previous formalizations, make sure you are consistent with the existing
     definition.
-    Always end your answer with a triple backticks block containing the
-    YAML formalization, also in the case if I respond with some error message.
+    Always respond with a triple backticks block containing the
+    YAML formalization and nothing else. In the case if I respond you with
+    some error message should you still respond with the YAML formalization.
     List values under a key must be indented. For example a response should look like:
     ```yaml
     Predicates:
@@ -151,7 +90,8 @@ class FormalizeFOLOneShot(dp.Query[dp.Response[str, Never]]):
     - Predicates are represented by their name followed by their arguments in
       parentheses (e.g., Human(x), Loves(Alice, Bob)). Each predicate must
       include its arity in the "Predicates" section and respect that arity in
-      its usage.
+      its usage. An argument of a predicate can be either a constant or
+      a bounded variable, it cannot be another predicate.
     - Logical connectives include:
       - And: conjunction (e.g., And(P, Q)) (exactly 2 arguments)
       - Or: disjunction (e.g., Or(P, Q)) (exactly 2 arguments)
@@ -165,7 +105,7 @@ class FormalizeFOLOneShot(dp.Query[dp.Response[str, Never]]):
       - Exists: existential quantification (e.g., Exists(x, P(x))) (exactly 2 arguments)
 
     Tips:
-    - "Either P or Q" means Xor(P, Q).
+    - Formalize statements like "Either P or Q" as Xor(P, Q).
     """
 
     sentences: list[str]
@@ -202,16 +142,7 @@ def folio_baseline(
     sentences = puzzle.strip().split("\n")
     previous_formalizations: list[str] = []
     solution: bool | None = None
-
-    if len(sentences) == 0:
-        assert_never(
-            (
-                yield from dp.fail(
-                    label="empty_puzzle",
-                    message="The provided puzzle is empty.",
-                )
-            )
-        )
+    yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
 
     for step_index, sentence in enumerate(sentences):
         step_type: StepType = (
@@ -241,14 +172,29 @@ def folio_baseline(
     return solution
 
 
+# TODO: return only Z3Response
 @strategy
 def check_constraints(
     formalization_yaml: str,
     step_type: StepType,
     add_permanently: bool,
+    additional_formalizations: list[str] = [],
+    blacklist: Blacklist = [],
 ) -> "Strategy[Compute, object, Z3Response | dp.Error | str]":
+    if not formalization_yaml.strip():
+        return dp.Error(
+            label="fol_empty_formalization",
+            meta={
+                "error": "The formalization is empty. No YAML content found."
+            },
+        )
+
+    ### TODO: if blacklist, for each item in blacklist, check if additional + item implies formalization_yaml
+    ### and additional + formalization_yaml implies item. If so, they are equivalent and we should return an error.
+
+    formalizations = additional_formalizations + [formalization_yaml]
     response = yield from dp.compute(run_fol_in_z3)(
-        formalization_yaml, step_type, permanently=False
+        formalizations, step_type, permanently=False
     )
     if response.status == "error":
         return dp.Error(
@@ -276,7 +222,7 @@ def check_constraints(
         )
     if add_permanently:
         response = yield from dp.compute(run_fol_in_z3)(
-            formalization_yaml, step_type, permanently=True
+            formalizations, step_type, permanently=True
         )
     if step_type in ("Conclusion", "All"):
         return response

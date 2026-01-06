@@ -224,14 +224,41 @@ class FOLParser:
         raise ValueError(f"Unsupported term node: {ast.dump(node)}")
 
 
-class YamlListParser:
+class YamlFormalizationParser:
     @staticmethod
-    def parse(
-        yaml_text: str,
+    def parse_multiple(
+        formalizations: list[str],
         previous_predicates: Set[PredicateDef] = set(),
         previous_constants: Set[str] = set(),
     ) -> Tuple[Set[PredicateDef], Set[str], List[Formula], List[Formula]]:
-        data = yaml.safe_load(yaml_text)
+        predicates: Set[PredicateDef] = set()
+        constants: Set[str] = set()
+        formulae: List[Formula] = []
+        conclusion: List[Formula] = []
+        for formalization_yaml in formalizations:
+            (
+                new_predicates,
+                new_constants,
+                new_formulae,
+                new_conclusion,
+            ) = YamlFormalizationParser._parse(
+                formalization_yaml,
+                previous_predicates | predicates,
+                previous_constants | constants,
+            )
+            predicates |= new_predicates
+            constants |= new_constants
+            formulae.extend(new_formulae)
+            conclusion.extend(new_conclusion)
+        return predicates, constants, formulae, conclusion
+
+    @staticmethod
+    def _parse(
+        formalization_yaml: str,
+        previous_predicates: Set[PredicateDef] = set(),
+        previous_constants: Set[str] = set(),
+    ) -> Tuple[Set[PredicateDef], Set[str], List[Formula], List[Formula]]:
+        data = yaml.safe_load(formalization_yaml)
         # Parse predicate declarations of the form "Name(Arity)"
         new_predicates: Set[PredicateDef] = set()
         new_constants: Set[str] = set()
@@ -399,8 +426,8 @@ def _example_usage() -> None:
     """
     predicates: Set[PredicateDef] = set()
     constants: Set[str] = set()
-    predicates, constants, formulae, conclusion = YamlListParser.parse(
-        input, predicates, constants
+    predicates, constants, formulae, conclusion = (
+        YamlFormalizationParser.parse_multiple([input], predicates, constants)
     )
     print("Parsed Predicates:", predicates)
     print("Parsed Constants:", constants)

@@ -1,0 +1,11 @@
+command: run_strategy
+args:
+  strategy: folio_iterative_back
+  args:
+    puzzle: | 
+      Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+      Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug.
+  policy: folio_iterative_back_policy
+  policy_args: {}
+  budget:
+    num_requests: 10

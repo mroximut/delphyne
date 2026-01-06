@@ -3,3 +3,5 @@ prompt_dirs: ["prompts"]
 modules:
   - "zebra_baseline"
   - "folio_baseline"
+  - "folio_iterative"
+  - "folio_iterative_back"

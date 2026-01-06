@@ -1,13 +1,19 @@
 from dataclasses import dataclass
+from typing import Literal
 
 import z3  # type: ignore
-from fol import Not, PredicateDef, YamlListParser, Z3Interpreter
-from folio_baseline import StepType
+from fol import Not, PredicateDef, YamlFormalizationParser, Z3Interpreter
+
+type StepType = Literal["Constraint", "Conclusion", "All"]
 
 _global_z3_solver: z3.Solver | None = None
 _global_z3_context: dict[str, object] | None = None
 _global_predicates: set[PredicateDef] = set()
 _global_constants: set[str] = set()
+_base_context: dict[str, object] = {
+    "z3": z3,
+    "__sort__": z3.DeclareSort("Object"),  # type: ignore
+}
 
 
 def init_global_z3_solver() -> None:
@@ -15,7 +21,7 @@ def init_global_z3_solver() -> None:
     if _global_z3_solver is not None:
         return
     _global_z3_solver = z3.Solver()
-    _global_z3_context = {"z3": z3, "__sort__": z3.DeclareSort("Object")}  # type: ignore
+    _global_z3_context = _base_context.copy()
 
 
 def _get_global_z3_solver() -> tuple[z3.Solver, dict[str, object]]:
@@ -43,6 +49,7 @@ class Z3Response:
     error: An error description if something went wrong, else None.
     """
 
+    formalizations: list[str]
     status: str
     model: str | None
     error: str | None
@@ -50,7 +57,7 @@ class Z3Response:
 
 # if not permanently, delete new predicates and constants after use
 def run_fol_in_z3(
-    yaml_list: str,
+    formalizations: list[str],
     step_type: StepType,
     permanently: bool,
 ) -> Z3Response:
@@ -62,11 +69,11 @@ def run_fol_in_z3(
     pushed = 0
     new_predicates: set[PredicateDef] = set()
     new_constants: set[str] = set()
-    new_context: dict[str, object] = {}
+    new_context: dict[str, object] = _base_context.copy()
     try:
         new_predicates, new_constants, formulae, conclusion = (
-            YamlListParser.parse(
-                yaml_list,
+            YamlFormalizationParser.parse_multiple(
+                formalizations,
                 previous_predicates=predicates,
                 previous_constants=constants,
             )
@@ -117,6 +124,7 @@ def run_fol_in_z3(
             constants.update(new_constants)
             context.update(new_context)
         return Z3Response(
+            formalizations=formalizations,
             status=status,
             model=model_str,
             error=error,
