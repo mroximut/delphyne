@@ -1,2 +1,4 @@
 datasets--allenai--ZebraLogicBench-private/
 datasets--yale-nlp--FOLIO
+experiments/output/
+experiments/test-output/

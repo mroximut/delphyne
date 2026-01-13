@@ -118,3 +118,120 @@
             - - '2'
               - Arnold
               - dog
+
+
+
+
+
+
+- demonstration: folio_iterative_naive
+  strategy: folio_iterative_naive
+  args:
+    puzzle: |
+      All people who regularly drink coffee are dependent on caffeine.
+      People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+      No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+      Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+      Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+      Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug.
+  tests:
+    - run | success
+  queries:
+    - query: FormalizeFOLConstraint
+      args:
+        sentence: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug.
+        previous_formalizations: []
+        step: Constraint
+        prefix: []
+        blacklist: []
+      answers:
+        - answer: |
+            ```yaml
+            Predicates:
+            - RegularlyDrinksCoffee(1)
+            - DependentOnCaffeine(1)
+            Constants:
+            - Rina
+            Constraints:
+            - ForAll(x, Implies(RegularlyDrinksCoffee(x), DependentOnCaffeine(x)))
+            ```
+    - query: FormalizeFOLConstraint
+      args:
+        sentence: People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+        previous_formalizations: []
+        step: Constraint
+      answers:
+        - answer: |
+            ```yaml
+            Predicates:
+            - RegularlyDrinksCoffee(1)
+            - WantsToBeAddictedToCaffeine(1)
+            Constants:
+            -
+            Constraints:
+            - ForAll(x, Or(RegularlyDrinksCoffee(x), Not(WantsToBeAddictedToCaffeine(x))))
+            ```
+    - query: FormalizeFOLConstraint
+      args:
+        sentence: No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+        previous_formalizations: []
+        step: Constraint
+      answers:
+        - answer: |
+            ```yaml
+            Predicates:
+            - WantsToBeAddictedToCaffeine(1)
+            - AwareThatCaffeineIsDrug(1)
+            Constants:
+            - 
+            Constraints:
+            - ForAll(x, Implies(Not(WantsToBeAddictedToCaffeine(x)), AwareThatCaffeineIsDrug(x)))
+            ```
+    - query: FormalizeFOLConstraint
+      args:
+        sentence: Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+        previous_formalizations: []
+        step: Constraint
+      answers:
+        - answer: |
+            ```yaml
+            Predicates:
+            - AwareThatCaffeineIsDrug(1)    
+            - Student(1)
+            Constants:
+            - Rina
+            Constraints:
+            - Xor(And(Student(Rina), Not(AwareThatCaffeineIsDrug(Rina))), And(Not(Student(Rina)), AwareThatCaffeineIsDrug(Rina)))
+            ```
+    - query: FormalizeFOLConstraint
+      args:
+        sentence: Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+        previous_formalizations: []
+        step: Constraint
+      answers:
+        - answer: |
+            ```yaml
+            Predicates:
+            - DependentOnCaffeine(1)
+            - Student(1)
+            Constants:    
+            - Rina
+            Constraints:
+            - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+            ```
+    - query: FormalizeFOLConstraint
+      args:
+        sentence: "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
+        previous_formalizations: []
+        step: Constraint
+      answers:
+        - answer: |
+            ```yaml
+            Predicates:
+            - WantsToBeAddictedToCaffeine(1)
+            - AwareThatCaffeineIsDrug(1)
+            Constants:
+            - Rina
+            Conclusion:
+            - Or(Not(WantsToBeAddictedToCaffeine(Rina)), Not(AwareThatCaffeineIsDrug(Rina)))
+            ```

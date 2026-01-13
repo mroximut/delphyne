@@ -3,5 +3,8 @@ prompt_dirs: ["prompts"]
 modules:
   - "zebra_baseline"
   - "folio_baseline"
-  - "folio_iterative"
-  - "folio_iterative_back"
+  - "folio_iterative_blacklist"
+demo_files:
+  - "demos/zebra_baseline.demo.yaml"
+  - "demos/folio_baseline.demo.yaml"
+  - "demos/folio_iterative_blacklist.demo.yaml"

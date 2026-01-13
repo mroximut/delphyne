@@ -15,7 +15,10 @@ Sentence to formalize
 the formalization must be semantically different from the ones 
 below:
 ```
-{{ query.blacklist | join("\n\n") }}
+{% for item in query.blacklist %}
+{{ item }}
+
+{% endfor %}
 ```
 {% endif %}
 

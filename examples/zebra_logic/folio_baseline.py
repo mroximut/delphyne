@@ -2,30 +2,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Never, Sequence
 
-import pandas as pd
 from z3_tools import Z3Response, run_fol_in_z3
 
 import delphyne as dp
 from delphyne import Branch, Compute, Fail, Strategy, strategy
 
-SOLUTIONS_CSV: Path = (
-    Path(__file__).resolve().parent
-    / "datasets--yale-nlp--FOLIO"
-    / "folio_v2_train.csv"
-)
-
-
-def ensure_solution(puzzle_id: int, solution: bool) -> bool:
-    df = pd.read_csv(SOLUTIONS_CSV)  #  type: ignore
-    ground_truth = (
-        df.loc[df["example_id"] == puzzle_id, "label"].values[0] == "True"
-    )  #  type: ignore
-    assert isinstance(ground_truth, bool)
-    return ground_truth == solution
-
-
 type StepType = Literal["Constraint", "Conclusion", "All"]
-type Blacklist = Sequence[str | Z3Response]
+type Blacklist = Sequence[str | dp.Error]
 
 
 @dataclass
@@ -40,8 +23,14 @@ class FormalizeFOLConstraint(dp.Query[dp.Response[str, Never]]):
 
 
 @dataclass
-class FolioBaselineIP:
+class FormalizeIP:
     formalize: dp.PromptingPolicy
+    check: dp.Policy[Compute, object] = dp.exec @ dp.elim_compute() & None
+
+
+@dataclass
+class FolioIterativeIP:
+    single_sentence: dp.Policy[Branch | Fail, FormalizeIP]
 
 
 @dataclass
@@ -117,13 +106,14 @@ class FormalizeFOLOneShot(dp.Query[dp.Response[str, Never]]):
 @strategy
 def folio_oneshot(
     puzzle: str,
-) -> "Strategy[Branch | Fail, FolioBaselineIP, bool | None]":
+) -> Strategy[Branch | Fail, FormalizeIP, bool | None]:
     sentences = puzzle.strip().split("\n")
+    yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
     formalization_response = yield from dp.interact(
         step=lambda prefix, _,: FormalizeFOLOneShot(
             sentences=sentences,
             prefix=prefix,
-        ).using(lambda p: p.formalize, FolioBaselineIP),
+        ).using(lambda p: p.formalize, FormalizeIP),
         process=lambda formalization_yaml, _: check_constraints(
             formalization_yaml, step_type="All", add_permanently=False
         ).using(dp.just_compute),
@@ -135,10 +125,52 @@ def folio_oneshot(
         return formalization_response.status == "unsat"
 
 
+# @strategy
+# def check_constraints_mock(
+#     formalization_yaml: str,
+#     step_type: StepType,
+#     add_permanently: bool,
+#     additional_formalizations: list[str] = [],
+# ) -> "Strategy[Compute, object, Z3Response | dp.Error | str]":
+#     def f(x: int) -> int:
+#         return x
+
+#     x = yield from dp.compute(f)(1)
+#     assert x == 1
+#     if step_type == "Constraint":
+#         return formalization_yaml
+#     else:
+#         return dp.Error(label="mock")
+#         # return Z3Response(status="unsat", model=None, error=None)
+
+
 @strategy
-def folio_baseline(
+def formalize_single_sentence(
+    sentence: str,
+    previous_formalizations: list[str],
+    step_type: StepType,
+) -> Strategy[Branch | Fail, FormalizeIP, Z3Response]:
+    formalization_response = yield from dp.interact(
+        step=lambda prefix, _: FormalizeFOLConstraint(
+            sentence=sentence,
+            previous_formalizations=previous_formalizations,
+            step=step_type,
+            prefix=prefix,
+        ).using(lambda p: p.formalize, FormalizeIP),
+        process=lambda formalization_yaml, _: check_constraints(
+            formalization_yaml,
+            step_type,
+            add_permanently=False,
+            additional_formalizations=previous_formalizations,
+        ).using(dp.just_compute),
+    )
+    return formalization_response
+
+
+@strategy
+def folio_iterative_naive(
     puzzle: str,
-) -> "Strategy[Branch | Fail, FolioBaselineIP, bool | None | dp.Error]":
+) -> Strategy[Branch | Fail, FolioIterativeIP, bool | None]:
     sentences = puzzle.strip().split("\n")
     previous_formalizations: list[str] = []
     solution: bool | None = None
@@ -148,31 +180,28 @@ def folio_baseline(
         step_type: StepType = (
             "Conclusion" if step_index == len(sentences) - 1 else "Constraint"
         )
-        formalization_response = yield from dp.interact(
-            step=lambda prefix, _,: FormalizeFOLConstraint(
+        formalization_response = yield from dp.branch(
+            formalize_single_sentence(
                 sentence=sentence,
                 previous_formalizations=previous_formalizations,
-                step=step_type,
-                prefix=prefix,
-            ).using(lambda p: p.formalize, FolioBaselineIP),
-            process=lambda formalization_yaml, _: check_constraints(
-                formalization_yaml, step_type, add_permanently=True
-            ).using(dp.just_compute),
+                step_type=step_type,
+            ).using(lambda p: p.single_sentence, FolioIterativeIP),
         )
+        assert isinstance(formalization_response, Z3Response)
         if step_type == "Constraint":
-            assert isinstance(formalization_response, str)
-            previous_formalizations.append(formalization_response)
+            previous_formalizations.append(
+                formalization_response.formalizations[-1]
+            )
         if step_type == "Conclusion":
-            assert isinstance(formalization_response, Z3Response)
             if formalization_response.status == "unknown":
                 solution = None
             else:
                 solution = formalization_response.status == "unsat"
+            break
 
     return solution
 
 
-# TODO: return only Z3Response
 @strategy
 def check_constraints(
     formalization_yaml: str,
@@ -180,7 +209,8 @@ def check_constraints(
     add_permanently: bool,
     additional_formalizations: list[str] = [],
     blacklist: Blacklist = [],
-) -> "Strategy[Compute, object, Z3Response | dp.Error | str]":
+    timeout_in_seconds: float | None = None,
+) -> Strategy[Compute, object, Z3Response | dp.Error]:
     if not formalization_yaml.strip():
         return dp.Error(
             label="fol_empty_formalization",
@@ -188,13 +218,49 @@ def check_constraints(
                 "error": "The formalization is empty. No YAML content found."
             },
         )
-
-    ### TODO: if blacklist, for each item in blacklist, check if additional + item implies formalization_yaml
+    ### if blacklist, for each item in blacklist, check if additional + item implies formalization_yaml
     ### and additional + formalization_yaml implies item. If so, they are equivalent and we should return an error.
+    if blacklist and step_type == "Constraint":
+        new_formalizations = additional_formalizations + [formalization_yaml]
+        for black in blacklist:
+            if isinstance(black, dp.Error):
+                continue
+            else:
+                # Check for equivalence between formalization_yaml and item
+                old_formalizations = additional_formalizations + [black]
+                new_implies_old = yield from dp.compute(run_fol_in_z3)(
+                    new_formalizations,
+                    step_type,
+                    permanently=False,
+                    equivalence_target=black,
+                    timeout_in_seconds=timeout_in_seconds,
+                )
+                old_implies_new = yield from dp.compute(run_fol_in_z3)(
+                    old_formalizations,
+                    step_type,
+                    permanently=False,
+                    equivalence_target=formalization_yaml,
+                    timeout_in_seconds=timeout_in_seconds,
+                )
+                if (
+                    new_implies_old.status == "unsat"
+                    and old_implies_new.status == "unsat"
+                ):
+                    return dp.Error(
+                        label="fol_equivalent_formalization",
+                        meta={
+                            "error": "The formalization is equivalent to a blacklisted formalization.",
+                            "formalization_yaml": formalization_yaml,
+                            "blacklisted_item": black,
+                        },
+                    )
 
     formalizations = additional_formalizations + [formalization_yaml]
     response = yield from dp.compute(run_fol_in_z3)(
-        formalizations, step_type, permanently=False
+        formalizations,
+        step_type,
+        permanently=False,
+        timeout_in_seconds=timeout_in_seconds,
     )
     if response.status == "error":
         return dp.Error(
@@ -222,25 +288,78 @@ def check_constraints(
         )
     if add_permanently:
         response = yield from dp.compute(run_fol_in_z3)(
-            formalizations, step_type, permanently=True
+            formalizations,
+            step_type,
+            permanently=True,
+            timeout_in_seconds=timeout_in_seconds,
         )
-    if step_type in ("Conclusion", "All"):
-        return response
-    else:
-        return formalization_yaml
+    return response
 
 
-@dp.ensure_compatible(folio_baseline)
-def folio_baseline_policy(
-    model_name: dp.StandardModelName = "gpt-5-nano",
-    reasoning_effort: Literal["minimal", "low", "medium", "high"] = "low",
-) -> dp.Policy[Branch | Fail, FolioBaselineIP]:
+@dp.ensure_compatible(formalize_single_sentence)
+def formalize_single_policy(
+    max_rounds: int = 3,
+    model_name: str = "gpt-5-nano",
+    reasoning_effort: dp.ReasoningEffort = "low",
+    temperature: float | None = None,
+) -> dp.Policy[Branch | Fail, FormalizeIP]:
     model = dp.standard_model(
         model_name, {"reasoning_effort": reasoning_effort}
     )
-    return dp.dfs() & FolioBaselineIP(
-        formalize=dp.take(1) @ dp.few_shot(model)
+    ip = FormalizeIP(
+        formalize=dp.take(1) @ dp.few_shot(model, temperature=temperature)
     )
+    # ip = FormalizeIP(
+    #     formalize=dp.take(1)
+    #     @ dp.answer_with(
+    #         [
+    #             "```yaml\n```",
+    #             "```yaml\nPredicates:\n- Human(1)\nConstants:\n- Socrates\nConstraints:\n- Human(Socrates)\n```",
+    #         ],
+    #     )
+    # )
+    sp = dp.dfs(max_depth=max_rounds)
+    return sp & ip
+
+
+@dp.ensure_compatible(folio_oneshot)
+def folio_oneshot_policy(
+    model_name: dp.StandardModelName = "gpt-5-nano",
+    reasoning_effort: dp.ReasoningEffort = "low",
+    temperature: float | None = None,
+    max_rounds: int = 3,
+) -> dp.Policy[Branch | Fail, FormalizeIP]:
+    model = dp.standard_model(
+        model_name, {"reasoning_effort": reasoning_effort}
+    )
+    return dp.dfs(max_depth=max_rounds) & FormalizeIP(
+        formalize=dp.take(1) @ dp.few_shot(model, temperature=temperature)
+    )
+
+
+@dp.ensure_compatible(folio_iterative_naive)
+def folio_iterative_policy(
+    max_restarts: int = 2,
+    max_requests_per_attempt: int = 10,
+    max_retries_per_sentence: int = 2,
+    max_rounds_per_retry_of_sentence: int = 2,
+    model_name: str = "gpt-5-nano",
+    reasoning_effort: dp.ReasoningEffort = "low",
+    temperature: float | None = None,
+) -> dp.Policy[Branch | Fail, FolioIterativeIP]:
+    per_attempt = dp.BudgetLimit({dp.NUM_REQUESTS: max_requests_per_attempt})
+    sp = dp.with_budget(per_attempt) @ dp.dfs()
+    ip = FolioIterativeIP(
+        single_sentence=dp.loop(max_retries_per_sentence)
+        @ formalize_single_policy(
+            max_rounds_per_retry_of_sentence,
+            model_name,
+            reasoning_effort,
+            temperature,
+        )
+    )
+    # return dp.sequence((sp & ip for _ in range(max_restarts)))
+    return sp & ip
 
 
 if __name__ == "__main__":
@@ -252,14 +371,52 @@ if __name__ == "__main__":
 
     budget = dp.BudgetLimit({dp.NUM_REQUESTS: 4})
     res, _ = (
-        folio_baseline(example_puzzle)
+        folio_iterative_naive(example_puzzle)
         .run_toplevel(
             dp.PolicyEnv(
                 demonstration_files=[],
                 prompt_dirs=[Path(__file__).parent / "prompts"],
             ),
-            folio_baseline_policy(),
+            folio_iterative_policy(),
         )
         .collect(budget=budget, num_generated=1)
     )
     print(res[0].tracked.value)
+
+
+# @strategy
+# def folio_baseline(
+#     puzzle: str,
+# ) -> Strategy[Branch | Fail, FormalizeIP, bool | None]:
+#     sentences = puzzle.strip().split("\n")
+#     previous_formalizations: list[str] = []
+#     solution: bool | None = None
+#     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
+
+#     for step_index, sentence in enumerate(sentences):
+#         step_type: StepType = (
+#             "Conclusion" if step_index == len(sentences) - 1 else "Constraint"
+#         )
+#         formalization_response = yield from dp.interact(
+#             step=lambda prefix, _,: FormalizeFOLConstraint(
+#                 sentence=sentence,
+#                 previous_formalizations=previous_formalizations,
+#                 step=step_type,
+#                 prefix=prefix,
+#             ).using(lambda p: p.formalize, FormalizeIP),
+#             process=lambda formalization_yaml, _: check_constraints(
+#                 formalization_yaml, step_type, add_permanently=True
+#             ).using(dp.just_compute),
+#         )
+#         assert isinstance(formalization_response, Z3Response)
+#         if step_type == "Constraint":
+#             previous_formalizations.append(
+#                 formalization_response.formalizations[-1]
+#             )
+#         if step_type == "Conclusion":
+#             if formalization_response.status == "unknown":
+#                 solution = None
+#             else:
+#                 solution = formalization_response.status == "unsat"
+
+#     return solution

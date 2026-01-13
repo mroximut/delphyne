@@ -248,8 +248,8 @@ class YamlFormalizationParser:
             )
             predicates |= new_predicates
             constants |= new_constants
-            formulae.extend(new_formulae)
-            conclusion.extend(new_conclusion)
+            formulae += new_formulae
+            conclusion += new_conclusion
         return predicates, constants, formulae, conclusion
 
     @staticmethod

@@ -60,7 +60,14 @@ def run_fol_in_z3(
     formalizations: list[str],
     step_type: StepType,
     permanently: bool,
+    equivalence_target: str | None = None,
+    timeout_in_seconds: float | None = None,
 ) -> Z3Response:
+    if timeout_in_seconds is not None:
+        z3.set_param("timeout", int(timeout_in_seconds * 1000))  # type: ignore
+    else:
+        z3.set_param("timeout", 0)  # type: ignore
+
     solver, context = _get_global_z3_solver()
     predicates, constants = _get_global_predicates_and_constants()
     status = "not_run"
@@ -78,6 +85,20 @@ def run_fol_in_z3(
                 previous_constants=constants,
             )
         )
+        eq_formulae = []
+        if equivalence_target:
+            assert step_type == "Constraint"
+            assert permanently is False
+            eq_predicates, eq_constants, eq_formulae, _ = (
+                YamlFormalizationParser.parse_multiple(
+                    [equivalence_target],
+                    previous_predicates=predicates | new_predicates,
+                    previous_constants=constants | new_constants,
+                )
+            )
+            new_predicates |= eq_predicates
+            new_constants |= eq_constants
+
         for p in new_predicates:
             assert context.get(p.name) is None
             Z3Interpreter.register_predicate(p, new_context)
@@ -98,6 +119,15 @@ def run_fol_in_z3(
                     Not(q), context | new_context
                 )
                 solver.add(z3_conclusion)  # type: ignore
+
+        if equivalence_target:
+            for f in eq_formulae:
+                solver.push()
+                pushed += 1
+                z3_formula = Z3Interpreter.interpret(
+                    Not(f), context | new_context
+                )
+                solver.add(z3_formula)  # type: ignore
 
         result = solver.check()  # type: ignore
         if result == z3.sat:
