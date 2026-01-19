@@ -1,0 +1,16 @@
+command: run_strategy
+args:
+  strategy: folio_oneshot
+  args:
+    puzzle: | 
+      All people who regularly drink coffee are dependent on caffeine.
+      People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+      No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+      Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+      Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+      Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug.
+  policy: folio_oneshot_policy
+  policy_args:
+    reasoning_effort: high
+  budget:
+    num_requests: 2

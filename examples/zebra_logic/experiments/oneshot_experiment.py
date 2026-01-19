@@ -17,10 +17,7 @@ configs_oneshot = [
     for bench_id in [
         id for (n, id) in enumerate(fe.BENCHS.keys()) if n > 3 and n < 15
     ]
-    for max_rounds, reasoning_effort in [
-        # (5, "low"),
-        (10, "minimal")
-    ]
+    for max_rounds, reasoning_effort in [(5, "low"), (10, "minimal")]
 ]
 
 

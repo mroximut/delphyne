@@ -82,7 +82,7 @@ def formalize_single_sentence_blacklist(
     #     ).using(
     #         dp.just_compute
     #     ),  # infinite loop?, because next of iterate exhausted
-    # TODO: max_attempts parameter to interact: return the last dp.Error after that
+    #  max_attempts parameter to interact?: return the last dp.Error after that
     # )
     formalization = yield from dp.branch(
         FormalizeFOLConstraint(

@@ -21,7 +21,7 @@ configs_iterative = [
         id for (n, id) in enumerate(fe.BENCHS.keys()) if n > 3 and n < 15
     ]
     for requests, rounds, reasoning_effort in [
-        # (10, 2, "low"),
+        (10, 2, "low"),
         (15, 3, "minimal"),
     ]
 ]
