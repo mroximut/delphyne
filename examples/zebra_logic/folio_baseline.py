@@ -9,6 +9,7 @@ from delphyne import Branch, Compute, Fail, Strategy, strategy
 
 type StepType = Literal["Constraint", "Conclusion", "All"]
 type Blacklist = Sequence[str | dp.Error]
+Z3_TIMEOUT = 5.0
 
 
 @dataclass
@@ -116,7 +117,7 @@ def folio_oneshot(
         ).using(lambda p: p.formalize, FormalizeIP),
         process=lambda formalization_yaml, _: check_constraints(
             formalization_yaml, step_type="All", add_permanently=False
-        ).using(dp.just_compute),
+        ).using(lambda p: p.check, FormalizeIP),
     )
     assert isinstance(formalization_response, Z3Response)
     if formalization_response.status == "unknown":
@@ -162,7 +163,7 @@ def formalize_single_sentence(
             step_type,
             add_permanently=False,
             additional_formalizations=previous_formalizations,
-        ).using(dp.just_compute),
+        ).using(lambda p: p.check, FormalizeIP),
     )
     return formalization_response
 
@@ -218,8 +219,8 @@ def check_constraints(
                 "error": "The formalization is empty. No YAML content found."
             },
         )
-    ### if blacklist, for each item in blacklist, check if additional + item implies formalization_yaml
-    ### and additional + formalization_yaml implies item. If so, they are equivalent and we should return an error.
+    # if blacklist, for each item in blacklist, check if additional + item implies formalization_yaml
+    # and additional + formalization_yaml implies item. If so, they are equivalent and we should return an error.
     if blacklist and step_type == "Constraint":
         new_formalizations = additional_formalizations + [formalization_yaml]
         for black in blacklist:
@@ -302,12 +303,14 @@ def formalize_single_policy(
     model_name: str = "gpt-5-nano",
     reasoning_effort: dp.ReasoningEffort = "low",
     temperature: float | None = None,
+    timeout_in_seconds: float = Z3_TIMEOUT,
 ) -> dp.Policy[Branch | Fail, FormalizeIP]:
     model = dp.standard_model(
         model_name, {"reasoning_effort": reasoning_effort}
     )
     ip = FormalizeIP(
-        formalize=dp.take(1) @ dp.few_shot(model, temperature=temperature)
+        formalize=dp.take(1) @ dp.few_shot(model, temperature=temperature),
+        check=dp.exec @ elim_z3_compute(timeout_in_seconds) & None,
     )
     # ip = FormalizeIP(
     #     formalize=dp.take(1)
@@ -328,12 +331,14 @@ def folio_oneshot_policy(
     reasoning_effort: dp.ReasoningEffort = "low",
     temperature: float | None = None,
     max_rounds: int = 3,
+    timeout_in_seconds: float = Z3_TIMEOUT,
 ) -> dp.Policy[Branch | Fail, FormalizeIP]:
     model = dp.standard_model(
         model_name, {"reasoning_effort": reasoning_effort}
     )
     return dp.dfs(max_depth=max_rounds) & FormalizeIP(
-        formalize=dp.take(1) @ dp.few_shot(model, temperature=temperature)
+        formalize=dp.take(1) @ dp.few_shot(model, temperature=temperature),
+        check=dp.exec @ elim_z3_compute(timeout_in_seconds) & None,
     )
 
 
@@ -346,6 +351,7 @@ def folio_iterative_policy(
     model_name: str = "gpt-5-nano",
     reasoning_effort: dp.ReasoningEffort = "low",
     temperature: float | None = None,
+    timeout_in_seconds: float = Z3_TIMEOUT,
 ) -> dp.Policy[Branch | Fail, FolioIterativeIP]:
     per_attempt = dp.BudgetLimit({dp.NUM_REQUESTS: max_requests_per_attempt})
     sp = dp.with_budget(per_attempt) @ dp.dfs()
@@ -356,10 +362,16 @@ def folio_iterative_policy(
             model_name,
             reasoning_effort,
             temperature,
+            timeout_in_seconds,
         )
     )
     # return dp.sequence((sp & ip for _ in range(max_restarts)))
     return sp & ip
+
+
+def elim_z3_compute(timeout: float):
+    z3_compute_args = {"timeout_in_seconds": timeout}
+    return dp.elim_compute(override_args=z3_compute_args)
 
 
 if __name__ == "__main__":

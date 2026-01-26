@@ -14,10 +14,12 @@ configs_oneshot = [
         max_dollar_budget=0.01,
         seed=0,
     )
-    for bench_id in [
-        id for (n, id) in enumerate(fe.BENCHS.keys()) if n > 3 and n < 15
+    for bench_id in [id for (n, id) in enumerate(fe.BENCHS.keys()) if n < 25]
+    for max_rounds, reasoning_effort in [
+        (10, "low"),
+        # (10, "medium"),
+        # (10, "minimal")
     ]
-    for max_rounds, reasoning_effort in [(5, "low"), (10, "minimal")]
 ]
 
 
@@ -26,5 +28,5 @@ if __name__ == "__main__":
         config_class=fe.OneshotConfig,
         context=dp.workspace_execution_context(__file__),
         configs=configs_oneshot,
-        output_dir=f"experiments/output/{dp.path_stem(__file__)}",
+        output_dir=f"experiments/output_20jan/{dp.path_stem(__file__)}",
     ).run_cli()

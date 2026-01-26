@@ -105,13 +105,13 @@ def run_fol_in_z3(
         for c in new_constants:
             assert context.get(c) is None
             Z3Interpreter.register_constant(c, new_context)
-        if formulae and step_type in ("Constraint", "All"):
+        if formulae:
             solver.push()
             pushed += 1
             for f in formulae:
                 z3_formula = Z3Interpreter.interpret(f, context | new_context)
                 solver.add(z3_formula)  # type: ignore
-        if conclusion and step_type in ("Conclusion", "All"):
+        if conclusion:
             solver.push()
             pushed += 1
             for q in conclusion:

@@ -16,12 +16,12 @@ configs_iterative = [
         max_dollar_budget=0.01,
         seed=0,
     )
-    for bench_id in [
-        id for (n, id) in enumerate(fe.BENCHS.keys()) if n > 3 and n < 15
-    ]
+    for bench_id in [id for (n, id) in enumerate(fe.BENCHS.keys()) if n < 25]
     for requests, retries, reasoning_effort in [
-        # (10, 2, "low"),
-        (15, 3, "minimal"),
+        # (20, 3, "minimal"),
+        (20, 3, "low"),
+        # (20, 3, "medium"),
+        # (15, 3, "minimal"),
     ]
 ]
 
@@ -31,5 +31,5 @@ if __name__ == "__main__":
         config_class=fe.IterativeBlacklistConfig,
         context=dp.workspace_execution_context(__file__),
         configs=configs_iterative,
-        output_dir=f"experiments/output/{dp.path_stem(__file__)}",
+        output_dir=f"experiments/output_20jan/{dp.path_stem(__file__)}",
     ).run_cli()

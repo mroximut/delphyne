@@ -12,12 +12,16 @@ Sentence to formalize
 ```
 
 {% if query.blacklist %}
-the formalization must be semantically different from the ones 
-below:
+Consider the following blacklist of formalizations.
+Some might be errors that were encountered previously,
+you should avoid repeting the same mistakes.
+Some are valid seeming formalizations that however
+do not semantically align with the intended meaning of the sentence, 
+you should avoid these as well.
 ```
 {% for item in query.blacklist %}
-{{ item }}
-
+- {{ item }}
+---------------------
 {% endfor %}
 ```
 {% endif %}

@@ -2,19 +2,20 @@ from dataclasses import dataclass
 from typing import cast
 
 from folio_baseline import (
+    Z3_TIMEOUT,
     Blacklist,
     FormalizeFOLConstraint,
     FormalizeIP,
     StepType,
     check_constraints,  # type: ignore
+    elim_z3_compute,
 )
 from z3_tools import Z3Response
 
 import delphyne as dp
 from delphyne import Branch, Fail, Strategy, strategy
-from delphyne.stdlib.streams import majority_vote
 
-Z3_TIMEOUT = 5.0
+# from delphyne.stdlib.streams import majority_vote
 
 
 @dataclass
@@ -136,7 +137,6 @@ def folio_iterative_blacklist(
                     step_type=step_type,
                     blacklist=prior,
                 ).using(lambda p: p.single_sentence, FolioIterativeIP),
-                lambda p: p.iterate_transformer,
             ),
         )
         if isinstance(formalization_response, dp.Error):
@@ -169,12 +169,14 @@ def formalize_single_policy(
     )
     pp = dp.few_shot(model, temperature=temperature)
     if majority_vote_size:
-        pp = majority_vote() @ dp.take(majority_vote_size) @ pp
+        pp = (  # majority_vote() @
+            dp.take(majority_vote_size) @ pp
+        )
     else:
         pp = dp.take(1) @ pp
     ip = FormalizeIP(
         formalize=pp,
-        check=dp.exec @ _elim_z3_compute(timeout_in_seconds) & None,
+        check=dp.exec @ elim_z3_compute(timeout_in_seconds) & None,
     )
     sp = dp.dfs()
     return sp & ip
@@ -212,8 +214,3 @@ def folio_iterative_blacklist_policy(
 
     # return dp.sequence((make() for _ in range(max_restarts)))
     return make()
-
-
-def _elim_z3_compute(timeout: float):
-    z3_compute_args = {"timeout_in_seconds": timeout}
-    return dp.elim_compute(override_args=z3_compute_args)
