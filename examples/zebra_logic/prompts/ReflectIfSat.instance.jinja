@@ -1,0 +1,25 @@
+The logic puzzle is:
+{{  query.sentences | join("\n") }}
+
+The formalizations are:
+{{ query.formalizations | join("\n\n") }}
+
+The model found by Z3 that satisfies the above constaraint is:
+{{ query.model }}
+
+
+Reflect on the `model` returned by Z3 for the given `formalizations`
+of the logic puzzle which is given as `sentences`.
+If the model violates any implicit constraints that were not captured in the
+formalizations, e.g. two constants that should be equal according to puzzle have different values in the model,
+ refine the formalizations to include those constraints.
+Change the existing predicates, constants, constraints, and conclusion as needed.
+Answer with in a single triple backticks YAML code block that has these
+four sections, that captures **everything** about the logic puzzle.
+Make sure to include all used predicates and constants in the respective sections.
+If no refinement is needed, answer with `nop` inside triple backticks
+code block.
+You must be a bit conservative in changing the existing formalizations, or adding new formalizations. In particular, do not add the conclusion as a constraint to make the model unsatisfiable. We are not looking for trivial refinements that make the model unsatisfiable by e.g. adding the conclusion as a constraint. Only add constraints that are implicit in the puzzle but were not captured in the original formalizations. If the model is correct and does not violate any implicit constraints, that is also a valid answer, and in that case respond with:
+```yaml
+nop
+```

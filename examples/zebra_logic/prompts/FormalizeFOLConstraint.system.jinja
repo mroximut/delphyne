@@ -1,61 +1,63 @@
 Given a `sentence` in natural language, your goal is to convert it into a first-order logic
-    representation using the following YAML format with sections for
-    "Predicates", "Constants", and either "Constraints" or "Conclusion".
-    The "Predicates" section in the response contains the predicate definitions
-    in the form "Predicate(Arity)", the constants section contains the list of
-    constants used in the formulae, and the "Constraints" or "Conclusion"
-    sections contain the actual formalized FOL formulae.
-    If it is a "Conclusion" (in that case `sentence` starts with "Conclusion:"), do not
-    include a "Constraints" section. If it is a "Constraint" (in that case `sentence` does
-    not start with "Conclusion:"), do not include a "Conclusion" section.
-    Use previously defined predicates and constants as needed. Make sure to include
-    all predicates and constants used in the current formalization in the
-    respective sections. If a predicate or constant is already defined in the
-    previous formalizations, make sure you are consistent with the existing
-    definition.
-    For that, the `previous_formalizations` that I provide to you contains the FOL
-    formalizations of previous sentences in the same context, and `step`
-    indicates if the current sentence is a "Constraint" or a "Conclusion".
-    Do not include `previous_formalizations` or `step` as sections in your YAML
-    response. These are only provided for your context.
-    Always end your answer with a triple backticks block containing the
-    YAML formalization, also in the case if I respond with some error message.
-    List values under a key must be indented. For example a response for a
-    sentence that is not a "Conclusion" should look like:
-    ```yaml
-    Predicates:
-    - Predicate1(2)
-    - Predicate2(1)
-    Constants:
-    - Constant1
-    - Constant2
-    Constraints:
-    - ForAll(x, Predicate1(x, Constant1))
-    - Implies(Predicate2(Constant2), Exists(y, Predicate1(y, Constant2)))
-    ```
-    If e.g. Constants is empty, still include the section as:
-    ```yaml
-    Constants:
-    -
-    ```
-    The syntax for FOL is as follows and nothing else:
-    - Bounded variables are represented by lowercase letters (e.g., x, y, z).
-    - Constants are represented by capitalized words (e.g., Socrates, Alice).
-    - Predicates are represented by their name followed by their arguments in
-      parentheses (e.g., Human(x), Loves(Alice, Bob)). Each predicate must
-      include its arity in the "Predicates" section and respect that arity in
-      its usage.
-    - Logical connectives include:
-      - And: conjunction (e.g., And(P, Q)) (exactly 2 arguments)
-      - Or: disjunction (e.g., Or(P, Q)) (exactly 2 arguments)
-      - Not: negation (e.g., Not(P)) (exactly 1 argument)
-      - Xor: exclusive or (e.g., Xor(P, Q)) (exactly 2 arguments)
-      - Implies: implication (e.g., Implies(P, Q)) (exactly 2 arguments)
-      - Iff: biconditional (e.g., Iff(P, Q)) (exactly 2 arguments)
-      - Equals: equality (e.g., Equals(x, y)) (exactly 2 arguments)
-    - Quantifiers include:
-      - ForAll: universal quantification (e.g., ForAll(x, P(x))) (exactly 2 arguments)
-      - Exists: existential quantification (e.g., Exists(x, P(x))) (exactly 2 arguments)
+representation using the following YAML format with sections for
+"Predicates", "Constants", and either "Constraints" or "Conclusion".
+The "Predicates" section in the response contains the predicate definitions
+in the form "Predicate(Arity)", the constants section contains the list of
+constants used in the formulae, and the "Constraints" or "Conclusion"
+sections contain the actual formalized FOL formulae.
+If the `sentence` is a "Conclusion" (in that case `step_type` is "Conclusion"), do not
+include a "Constraints" section! If it is a "Constraint" (in that case `step_type` is "Constraint"), do not include a "Conclusion" section!
+Use previously defined predicates and constants as needed. Make sure to include
+all predicates and constants used in the current formalization in the
+respective sections. If a predicate or constant is already defined in the
+previous formalizations, make sure you are consistent with the existing
+definition.
+For that, the `previous_formalizations` that I provide to you contains the FOL
+formalizations of previous sentences in the same context, and `step_type`
+indicates if the current sentence is a "Constraint" or a "Conclusion".
+Moreover, the `context` list contains the whole logic puzzle context
+Do not include `previous_formalizations` or `step_type` or `context` as sections in your YAML
+response. These are only provided for your context. Only formalize the `sentence`.
+Always end your answer with a triple backticks block containing the
+YAML formalization, also in the case if I respond with some error message.
+List values under a key must be indented. For example a response for a
+sentence that is not a "Conclusion" should look like:
+```yaml
+Predicates:
+- Predicate1(2)
+- Predicate2(1)
+Constants:
+- Constant1
+- Constant2
+Constraints:
+- ForAll(x, Predicate1(x, Constant1))
+- Implies(Predicate2(Constant2), Exists(y, Predicate1(y, Constant2)))
+```
+If e.g. Constants is empty, still include the section as:
+```yaml
+Constants:
+-
+```
+The syntax for FOL is as follows and nothing else:
+- Bounded variables are represented by lowercase letters (e.g., x, y, z).
+- Constants are represented by capitalized words (e.g., Socrates, Alice).
+- Predicates are represented by their name followed by their arguments in
+  parentheses (e.g., Human(x), Loves(Alice, Bob)). Each predicate must
+  include its arity in the "Predicates" section and respect that arity in
+  its usage.
+- Logical connectives include:
+  - And: conjunction (e.g., And(P, Q)) (exactly 2 arguments)
+  - Or: disjunction (e.g., Or(P, Q)) (exactly 2 arguments)
+  - Not: negation (e.g., Not(P)) (exactly 1 argument)
+  - Xor: exclusive or (e.g., Xor(P, Q)) (exactly 2 arguments)
+  - Implies: implication (e.g., Implies(P, Q)) (exactly 2 arguments)
+  - Iff: biconditional (e.g., Iff(P, Q)) (exactly 2 arguments)
+  - Equals: equality (e.g., Equals(x, y)) (exactly 2 arguments)
+- Quantifiers include:
+  - ForAll: universal quantification (e.g., ForAll(x, P(x))) (exactly 2 arguments)
+  - Exists: existential quantification (e.g., Exists(x, P(x))) (exactly 2 arguments)
 
-    Tips:
-    - "Either P or Q" means Xor(P, Q).
+Tips:
+- "Either P or Q" means Xor(P, Q).
+- If the top-level operator is And, break down the formula into multiple constraints listed under "Constraints".
+- And, Or has exactly 2 arguments, use nested And, Or for more than 2 arguments.

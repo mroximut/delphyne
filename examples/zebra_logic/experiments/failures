@@ -1,0 +1,104 @@
+Failures
+
+- 1194:
+    Should know "prefers TV series to movies" === "prefers TV series" 
+- 550
+    Should know implicitly Not(Equals(constant1, constant2))
+- 551
+    Unmatched ")"
+- 637
+    Premises already unsat -> Ground truth is Uncertain.
+- 393
+    Should translate "another name for" as Equals
+- 214: 
+    TutorOf(2) order
+
+
+### Ideas
+- We can create a model and then ask if that is scenario that controdicts the formalization.
+- Majority vote 
+    -> over the whole one shot procedure
+    -> over paths ???
+    -> if at least one unsat give unsat???
+- Prompt engineering: beware of nuances 
+    -> encode nuances as constraints as a separate step maybe, then look if the result changes 
+- First fix a set of predicates? 
+- separate syntax and semantics error for blacklist??
+
+
+- First formalize very machine-like, then refine??
+- fine grained predicates
+- type for every constant?
+- eliminate uncertain from dataset
+-------------------
+
+- small changes to counterexample -----> only introduce new predicates
+- parallel streams
+- diversity
+- Flag in lean study
+- quasi-random search
+- starting globally then repairing
+- Aggregate
+
+
+### Black better than oneshot
+
+one: 491,gpt-5-nano,10,low,0.01,True,2,2,4352,3584,1841,0.00079272,,491,True,False,False,db27fdb5-1d1b-4db9-9366-1a197fb503b9
+black: 491,gpt-5-nano,2,30,3,low,False,5,0.01,True,6,6,31402,24448,4275,0.0021799399999999,491,False,False,True,a1a10be0-4209-4f3f-837c-4209caa39790
+Blunder: conclusion not formalized correctly
+
+### reflect harmful
+
+----- 
+625,gpt-5-nano,2,30,3,low,False,5,0.01,True,6,6,31325,29440,5024,0.00225105,625,False,False,True,22f9eb42-af06-49b2-9937-c7961f6101d1
+625,gpt-5-nano,2,30,3,low,True,5,0.01,True,7,7,36671,29440,4261,0.00221315,625,True,False,False,60bbb90b-b120-404d-bf72-2eeb459f2123
+
+
+----- artificially added the conclusion to constraints ----- 
+272,gpt-5-nano,2,30,3,low,False,5,0.01,True,8,8,41799,39424,2365,0.00126187,272,False,False,True,150c86df-46b3-41d7-97ba-7d35c203bd7f
+272,gpt-5-nano,2,30,3,low,True,5,0.01,True,9,9,43041,39296,4638,0.0022389299999999,272,True,False,False,94488af4-6162-4f65-be1e-caaff5cc6d2f
+
+
+----- reflect one was already unsat before reflect ------
+112,gpt-5-nano,2,30,3,low,False,5,0.01,True,6,6,31205,24448,2381,0.00141249,112,False,False,True,a8e852b5-fbd2-4ec6-a96b-b18ef09d0fc6
+112,gpt-5-nano,2,30,3,low,True,5,0.01,True,7,7,32633,29440,3874,0.00185645,112,True,False,False,d05f65e2-0570-47f0-bee0-67f3858c8a8b
+
+
+
+
+
+
+
+
+
+
+
+
+###########################
+More counterexample generation and asking LLM to state counterexample in natural language
+Separate constraints and conclusion.
+Generate a list of conclusions
+Given conclusion create a minimal set of (sensible) constraints that imply it (reverse math)
+
+
+First fix some predicates and type for every entity
+Then
+- Machine like formalization no implicit meanings
+- Just formalize
+- Try to accomodate implicit meanings
+- rewrite with implicit + literal agent
+
+aggreate all these?
+
+
+ Preprocess: Set the language, predicates, constants etc.
+
+3 agents: Literal, Normal, Implicit(first add implicit sentences formalize them and combine with literal) reasoners
+
+Postprocess to Literal and Implicit:
+
+if Literal is sat -> show counterexample and refine
+
+if Implicit is unsat -> show only relevant set(unsat core) implying the consequence and ask if anything to left out
+
+Then majority vote over postprocessed Literal -- Normal -- postprocessed Implicit. 

@@ -1,29 +1,43 @@
 Previous formalizations are:
 
-```
 {{ query.previous_formalizations | join("\n\n") }}
-```
 
-Current step: {{ query.step }}
+Current step: {{ query.step_type }}
 
-Sentence to formalize
-```
+{% if query.context %}
+The context of the puzzle is:
+{{ query.context | join("\n") }}
+{% endif %}
+
+**Sentence to formalize is below. Only formalize this**
+
 {{ query.sentence }}
-```
+
+**End of sentence**
 
 {% if query.blacklist %}
-Consider the following blacklist of formalizations.
-Some might be errors that were encountered previously,
-you should avoid repeting the same mistakes.
-Some are valid seeming formalizations that however
-do not semantically align with the intended meaning of the sentence, 
-you should avoid these as well.
-```
+**Instructions**
+There were some problems with formalizing the current sentence that you encountered before. Consider the following list containing those.
+
 {% for item in query.blacklist %}
-- {{ item }}
+{% if item.__class__.__name__ == 'Error' %}
+--------------------
+- **Following error encountered before! You must avoid this:** 
+{{ item.meta['error'] }}
+- The formalization that caused this error was:
+
+{{ item.meta['formalization_yaml'] | yaml }}
+
 ---------------------
+{% else %}
+---------------------
+- You must find a formalization semantically different from: 
+
+{{ item | yaml }}
+
+---------------------
+{% endif %}
 {% endfor %}
-```
 {% endif %}
 
 Your task is to provide the formalization in the specified YAML

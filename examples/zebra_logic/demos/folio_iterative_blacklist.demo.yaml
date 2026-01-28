@@ -16,7 +16,14 @@
       args:
         sentence: All people who regularly drink coffee are dependent on caffeine.
         previous_formalizations: []
-        step: Constraint
+        step_type: Constraint
+        context:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
         prefix: null
         blacklist: []
       answers:
@@ -42,7 +49,14 @@
             - Rina
             Constraints:
             - ForAll(x, Implies(RegularlyDrinksCoffee(x), DependentOnCaffeine(x)))
-        step: Constraint
+        step_type: Constraint
+        context:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
         prefix: null
         blacklist: []
       answers:
@@ -76,7 +90,14 @@
             -
             Constraints:
             - ForAll(x, Or(RegularlyDrinksCoffee(x), Not(WantsToBeAddictedToCaffeine(x))))
-        step: Constraint
+        step_type: Constraint
+        context:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
         prefix: null
         blacklist: []
       answers:
@@ -118,7 +139,14 @@
             - 
             Constraints:
             - ForAll(x, Implies(Not(WantsToBeAddictedToCaffeine(x)), AwareThatCaffeineIsDrug(x)))
-        step: Constraint
+        step_type: Constraint
+        context:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
         prefix: null
         blacklist: []
       answers:
@@ -168,7 +196,14 @@
             - Rina
             Constraints:
             - Xor(And(Student(Rina), Not(AwareThatCaffeineIsDrug(Rina))), And(Not(Student(Rina)), AwareThatCaffeineIsDrug(Rina)))
-        step: Constraint
+        step_type: Constraint
+        context:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
         prefix: null
         blacklist: []
       answers:
@@ -226,7 +261,14 @@
             - Rina
             Constraints:
             - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
-        step: Conclusion
+        step_type: Conclusion
+        context:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
         prefix: null
         blacklist: []
       answers:

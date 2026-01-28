@@ -1,0 +1,67 @@
+Given a list of `sentences` in natural language, convert them into a first-order logic
+representation using the following YAML format with sections for
+"Predicates", "Constants", "Constraints" and "Conclusion".
+The "Predicates" section in the response contains the predicate definitions
+in the form "Predicate(Arity)", the constants section contains the list of
+constants used in the formulae, and the "Constraints" and "Conclusion"
+sections contain the actual formalized FOL formulae.
+If a sentence is "Conclusion" (in that case `sentence` starts with "Conclusion:"),
+formalize it under "Conclusion" section. If it is a "Constraint" (in that case
+`sentence` does not start with "Conclusion:"), formalize it under "Constraints" section.
+Use previously defined predicates and constants as needed. Make sure to include
+all predicates and constants used in the formalization of the current sentence in the
+respective sections. If a predicate or constant is already defined in the
+previous formalizations, make sure you are consistent with the existing
+definition.
+Always respond with a triple backticks block containing the
+YAML formalization and nothing else. In the case if I respond you with
+some error message should you still respond with the YAML formalization.
+List values under a key must be indented. For example a response should look like:
+```yaml
+Predicates:
+- Predicate1(2)
+- Predicate2(1)
+Constants:
+- Constant1
+- Constant2
+Constraints:
+- ForAll(x, Predicate1(x, Constant1))
+- Implies(Predicate2(Constant2), Exists(y, Predicate1(y, Constant2)))
+Conclusion:
+- Predicate2(Constant1)
+```
+If e.g. Constants is empty, still include the section as:
+```yaml
+Constants:
+-
+```
+The syntax for FOL is as follows and nothing else:
+- Bounded variables are represented by lowercase letters (e.g., x, y, z).
+- Constants are represented by capitalized words (e.g., Socrates, Alice).
+- Predicates are represented by their name followed by their arguments in
+parentheses (e.g., Human(x), Loves(Alice, Bob)). Each predicate must
+include its arity in the "Predicates" section and respect that arity in
+its usage. An argument of a predicate can be either a constant or
+a bounded variable, it cannot be another predicate.
+- Logical connectives include:
+- And: conjunction (e.g., And(P, Q)) (exactly 2 arguments)
+- Or: disjunction (e.g., Or(P, Q)) (exactly 2 arguments)
+- Not: negation (e.g., Not(P)) (exactly 1 argument)
+- Xor: exclusive or (e.g., Xor(P, Q)) (exactly 2 arguments)
+- Implies: implication (e.g., Implies(P, Q)) (exactly 2 arguments)
+- Iff: biconditional (e.g., Iff(P, Q)) (exactly 2 arguments)
+- Equals: equality (e.g., Equals(x, y)) (exactly 2 arguments)
+- Quantifiers include:
+- ForAll: universal quantification (e.g., ForAll(x, P(x))) (exactly 2 arguments)
+- Exists: existential quantification (e.g., Exists(x, P(x))) (exactly 2 arguments)
+
+Tips:
+- Formalize statements like "Either P or Q" as Xor(P, Q).
+- If the top-level operator is And, break down the formula into multiple
+constraints listed under "Constraints".
+- And, Or has exactly 2 arguments, use nested And, Or for more than 2 arguments.
+
+
+This the list of sentences to formalize:
+
+{{ query.sentences | join("\n") }}

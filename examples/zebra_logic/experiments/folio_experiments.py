@@ -35,12 +35,20 @@ def load_folio_benchmark() -> dict[int, tuple[str, bool]]:
 BENCHS = load_folio_benchmark()
 
 
+def sample(len_keys: int, len_samples: int, seed: int = 42) -> list[int]:
+    import random
+
+    random.seed(seed)
+    return random.sample(range(len_keys), len_samples)
+
+
 @dataclass
 class OneshotConfig:
     bench_id: int
     model_name: str
     max_rounds: int
     reasoning_effort: dp.ReasoningEffort
+    reflect_if_sat: bool = False
     temperature: float | None = None
     max_dollar_budget: float | None = 0.2
     seed: int = 0
@@ -58,6 +66,7 @@ class OneshotConfig:
                 "reasoning_effort": self.reasoning_effort,
                 "temperature": self.temperature,
                 "max_rounds": self.max_rounds,
+                "reflect_if_sat": self.reflect_if_sat,
             },
             budget=budget,
         )
@@ -107,6 +116,8 @@ class IterativeBlacklistConfig:
     max_requests_per_attempt: int
     max_retries_per_sentence: int
     reasoning_effort: dp.ReasoningEffort
+    reflect_if_sat: bool
+    max_depth_for_reflect: int
     temperature: float | None = None
     max_dollar_budget: float | None = 0.2
     seed: int = 0
@@ -126,6 +137,8 @@ class IterativeBlacklistConfig:
                 "max_restarts": self.max_restarts,
                 "max_requests_per_attempt": self.max_requests_per_attempt,
                 "max_retries_per_sentence": self.max_retries_per_sentence,
+                "reflect_if_sat": self.reflect_if_sat,
+                "max_depth_for_reflect": self.max_depth_for_reflect,
             },
             budget=budget,
         )

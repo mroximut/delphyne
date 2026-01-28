@@ -59,7 +59,8 @@
       args:
         sentence: All people who regularly drink coffee are dependent on caffeine.
         previous_formalizations: []
-        step: Constraint
+        step_type: Constraint
+        context: null
         prefix: []
         blacklist: null
       answers:
@@ -85,7 +86,8 @@
             - Rina
             Constraints:
             - ForAll(x, Implies(RegularlyDrinksCoffee(x), DependentOnCaffeine(x)))
-        step: Constraint
+        step_type: Constraint
+        context: null
         prefix: []
         blacklist: null
       answers:
@@ -119,7 +121,8 @@
             -
             Constraints:
             - ForAll(x, Or(RegularlyDrinksCoffee(x), Not(WantsToBeAddictedToCaffeine(x))))
-        step: Constraint
+        step_type: Constraint
+        context: null
         prefix: []
         blacklist: null
       answers:
@@ -161,7 +164,8 @@
             - 
             Constraints:
             - ForAll(x, Implies(Not(WantsToBeAddictedToCaffeine(x)), AwareThatCaffeineIsDrug(x)))
-        step: Constraint
+        step_type: Constraint
+        context: null
         prefix: []
         blacklist: null
       answers:
@@ -211,7 +215,8 @@
             - Rina
             Constraints:
             - Xor(And(Student(Rina), Not(AwareThatCaffeineIsDrug(Rina))), And(Not(Student(Rina)), AwareThatCaffeineIsDrug(Rina)))
-        step: Constraint
+        step_type: Constraint
+        context: null
         prefix: []
         blacklist: null
       answers:
@@ -269,7 +274,8 @@
             - Rina
             Constraints:
             - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
-        step: Conclusion
+        step_type: Conclusion
+        context: null
         prefix: []
         blacklist: null
       answers:

@@ -13,9 +13,11 @@ from delphyne.stdlib.experiments.experiment_launcher import (
     RESULTS_SUMMARY,
 )
 
-ONEHOT = "output_20jan/oneshot_experiment"
-NAIVE = "output_20jan/iterative_naive_experiment"
-BLACKLIST = "output_20jan/iterative_blacklist_experiment"
+ONEHOT = "output_27jan/oneshot_experiment"
+# NAIVE = "output_20jan/iterative_naive_experiment"
+BLACKLIST = "output_27jan/iterative_blacklist_experiment"
+ONESHOT_REFLECT = "output_27jan_reflect/oneshot_experiment"
+BLACKLIST_REFLECT = "output_27jan_reflect/iterative_blacklist_experiment"
 
 
 def process_results(
@@ -41,6 +43,9 @@ def process_results(
             previous_merged_df is not None
             and hsh in previous_merged_df["config_hash"].values
         ):
+            continue
+
+        if cfg.get("status") != "done":
             continue
 
         bench_id = cfg.get("params").get("bench_id")
@@ -70,10 +75,15 @@ def process_results(
 
 
 def get_correctness_ratio(
-    merged_df_path: Path, effort: str
+    merged_df_path: Path, effort: str, reflect_if_sat: bool = False
 ) -> tuple[int, int]:
     merged_df = pd.read_csv(merged_df_path)  # type: ignore
     df_effort = merged_df[merged_df["reasoning_effort"] == effort]
+    if "reflect_if_sat" in df_effort.columns:
+        df_effort = df_effort[df_effort["reflect_if_sat"] == reflect_if_sat]
+    if df_effort.empty and not reflect_if_sat:
+        df_effort = merged_df[merged_df["reasoning_effort"] == effort]
+        df_effort = df_effort[df_effort["reflect_if_sat"].isnull()]
     correct = df_effort["correct"].sum()
     total = len(df_effort)
     return int(correct), int(total)
@@ -86,22 +96,40 @@ def merged_df_path(experiment_dir: str) -> Path:
 
 if __name__ == "__main__":
     process_results(ONEHOT)
-    process_results(NAIVE)
+    # process_results(NAIVE)
     process_results(BLACKLIST)
+    process_results(ONESHOT_REFLECT)
+    process_results(BLACKLIST_REFLECT)
 
-    for effort_level in ["low", "medium"]:
+    for effort_level, reflect_if_sat in [
+        (e, f) for e in ["low"] for f in [False, True]
+    ]:
         ratio_onehot = get_correctness_ratio(
-            merged_df_path(ONEHOT), effort_level
+            merged_df_path(ONEHOT), effort_level, reflect_if_sat
         )
-        ratio_naive = get_correctness_ratio(
-            merged_df_path(NAIVE), effort_level
-        )
+        # ratio_naive = get_correctness_ratio(
+        #    merged_df_path(NAIVE), effort_level
+        # )
         ratio_blacklist = get_correctness_ratio(
-            merged_df_path(BLACKLIST), effort_level
+            merged_df_path(BLACKLIST), effort_level, reflect_if_sat
         )
         print(
             f"Effort: {effort_level} | "
+            f"Reflect if sat: {reflect_if_sat} | "
             f"One-shot: {ratio_onehot[0]}/{ratio_onehot[1]} | "
-            f"Iterative Naive: {ratio_naive[0]}/{ratio_naive[1]} | "
+            # f"Iterative Naive: {ratio_naive[0]}/{ratio_naive[1]} | "
             f"Iterative Blacklist: {ratio_blacklist[0]}/{ratio_blacklist[1]}"
         )
+
+    ratio_oneshot_reflect = get_correctness_ratio(
+        merged_df_path(ONESHOT_REFLECT), "low", True
+    )
+    ratio_blacklist_reflect = get_correctness_ratio(
+        merged_df_path(BLACKLIST_REFLECT), "low", True
+    )
+    print(
+        f"Effort: low | "
+        f"Reflect if sat: True | "
+        f"One-shot Reflect: {ratio_oneshot_reflect[0]}/{ratio_oneshot_reflect[1]} | "
+        f"Iterative Blacklist Reflect: {ratio_blacklist_reflect[0]}/{ratio_blacklist_reflect[1]}"
+    )

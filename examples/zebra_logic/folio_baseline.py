@@ -16,7 +16,8 @@ Z3_TIMEOUT = 5.0
 class FormalizeFOLConstraint(dp.Query[dp.Response[str, Never]]):
     sentence: str
     previous_formalizations: list[str]
-    step: StepType
+    step_type: StepType
+    context: list[str] | None = None
     prefix: dp.AnswerPrefix | None = None
     blacklist: Blacklist | None = None
 
@@ -30,74 +31,50 @@ class FormalizeIP:
 
 
 @dataclass
+class OneShotIP:
+    formalizeIP: FormalizeIP
+    reflect_if_sat: dp.Policy[Branch | Fail, FormalizeIP]
+
+
+@dataclass
 class FolioIterativeIP:
     single_sentence: dp.Policy[Branch | Fail, FormalizeIP]
 
 
 @dataclass
+class ReflectIfSat(dp.Query[dp.Response[str, Never]]):
+    sentences: list[str]
+    formalizations: list[str]
+    model: str
+    prefix: dp.AnswerPrefix
+
+    __parser__ = dp.last_code_block.trim.response
+
+
+@strategy
+def reflect_if_sat(
+    sentences: list[str],
+    formalizations: list[str],
+    model: str,
+) -> Strategy[Branch | Fail, FormalizeIP, Z3Response]:
+    response = yield from dp.interact(
+        step=lambda prefix, _: ReflectIfSat(
+            sentences=sentences,
+            formalizations=formalizations,
+            model=model,
+            prefix=prefix,
+        ).using(lambda p: p.formalize, FormalizeIP),
+        process=lambda refined_formalization, _: check_constraints(
+            refined_formalization,
+            step_type="All",
+            add_permanently=False,
+        ).using(lambda p: p.check, FormalizeIP),
+    )
+    return response
+
+
+@dataclass
 class FormalizeFOLOneShot(dp.Query[dp.Response[str, Never]]):
-    """
-    Given a list of `sentences` in natural language, convert them into a first-order logic
-    representation using the following YAML format with sections for
-    "Predicates", "Constants", "Constraints" and "Conclusion".
-    The "Predicates" section in the response contains the predicate definitions
-    in the form "Predicate(Arity)", the constants section contains the list of
-    constants used in the formulae, and the "Constraints" and "Conclusion"
-    sections contain the actual formalized FOL formulae.
-    If a sentence is "Conclusion" (in that case `sentence` starts with "Conclusion:"),
-    formalize it under "Conclusion" section. If it is a "Constraint" (in that case
-    `sentence` does not start with "Conclusion:"), formalize it under "Constraints" section.
-    Use previously defined predicates and constants as needed. Make sure to include
-    all predicates and constants used in the formalization of the current sentence in the
-    respective sections. If a predicate or constant is already defined in the
-    previous formalizations, make sure you are consistent with the existing
-    definition.
-    Always respond with a triple backticks block containing the
-    YAML formalization and nothing else. In the case if I respond you with
-    some error message should you still respond with the YAML formalization.
-    List values under a key must be indented. For example a response should look like:
-    ```yaml
-    Predicates:
-    - Predicate1(2)
-    - Predicate2(1)
-    Constants:
-    - Constant1
-    - Constant2
-    Constraints:
-    - ForAll(x, Predicate1(x, Constant1))
-    - Implies(Predicate2(Constant2), Exists(y, Predicate1(y, Constant2)))
-    Conclusion:
-    - Predicate2(Constant1)
-    ```
-    If e.g. Constants is empty, still include the section as:
-    ```yaml
-    Constants:
-    -
-    ```
-    The syntax for FOL is as follows and nothing else:
-    - Bounded variables are represented by lowercase letters (e.g., x, y, z).
-    - Constants are represented by capitalized words (e.g., Socrates, Alice).
-    - Predicates are represented by their name followed by their arguments in
-      parentheses (e.g., Human(x), Loves(Alice, Bob)). Each predicate must
-      include its arity in the "Predicates" section and respect that arity in
-      its usage. An argument of a predicate can be either a constant or
-      a bounded variable, it cannot be another predicate.
-    - Logical connectives include:
-      - And: conjunction (e.g., And(P, Q)) (exactly 2 arguments)
-      - Or: disjunction (e.g., Or(P, Q)) (exactly 2 arguments)
-      - Not: negation (e.g., Not(P)) (exactly 1 argument)
-      - Xor: exclusive or (e.g., Xor(P, Q)) (exactly 2 arguments)
-      - Implies: implication (e.g., Implies(P, Q)) (exactly 2 arguments)
-      - Iff: biconditional (e.g., Iff(P, Q)) (exactly 2 arguments)
-      - Equals: equality (e.g., Equals(x, y)) (exactly 2 arguments)
-    - Quantifiers include:
-      - ForAll: universal quantification (e.g., ForAll(x, P(x))) (exactly 2 arguments)
-      - Exists: existential quantification (e.g., Exists(x, P(x))) (exactly 2 arguments)
-
-    Tips:
-    - Formalize statements like "Either P or Q" as Xor(P, Q).
-    """
-
     sentences: list[str]
     prefix: dp.AnswerPrefix
 
@@ -107,42 +84,44 @@ class FormalizeFOLOneShot(dp.Query[dp.Response[str, Never]]):
 @strategy
 def folio_oneshot(
     puzzle: str,
-) -> Strategy[Branch | Fail, FormalizeIP, bool | None]:
+) -> Strategy[Branch | Fail, OneShotIP, bool | None]:
     sentences = puzzle.strip().split("\n")
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
-    formalization_response = yield from dp.interact(
+    response = yield from dp.interact(
         step=lambda prefix, _,: FormalizeFOLOneShot(
             sentences=sentences,
             prefix=prefix,
-        ).using(lambda p: p.formalize, FormalizeIP),
+        ).using(lambda p: p.formalizeIP.formalize, OneShotIP),
         process=lambda formalization_yaml, _: check_constraints(
             formalization_yaml, step_type="All", add_permanently=False
-        ).using(lambda p: p.check, FormalizeIP),
+        ).using(lambda p: p.formalizeIP.check, OneShotIP),
     )
-    assert isinstance(formalization_response, Z3Response)
-    if formalization_response.status == "unknown":
-        return None
-    else:
-        return formalization_response.status == "unsat"
+    # assert isinstance(formalization_response, Z3Response)
+    assert response is not None
+    match response.status:
+        case "sat":
+            if response.model is not None:
+                model = response.model
+                refined_response = yield from dp.branch(
+                    reflect_if_sat(
+                        sentences=sentences,
+                        formalizations=response.formalizations,
+                        model=model,
+                    ).using(lambda p: p.reflect_if_sat, OneShotIP)
+                )
+                solution = refined_response.status == "unsat"
+            else:
+                solution = False
+        case "unsat":
+            solution = True
+        case _:
+            solution = None
 
-
-# @strategy
-# def check_constraints_mock(
-#     formalization_yaml: str,
-#     step_type: StepType,
-#     add_permanently: bool,
-#     additional_formalizations: list[str] = [],
-# ) -> "Strategy[Compute, object, Z3Response | dp.Error | str]":
-#     def f(x: int) -> int:
-#         return x
-
-#     x = yield from dp.compute(f)(1)
-#     assert x == 1
-#     if step_type == "Constraint":
-#         return formalization_yaml
-#     else:
-#         return dp.Error(label="mock")
-#         # return Z3Response(status="unsat", model=None, error=None)
+    return solution
+    # if formalization_response.status == "unknown":
+    #     return None
+    # else:
+    #     return formalization_response.status == "unsat"
 
 
 @strategy
@@ -155,7 +134,7 @@ def formalize_single_sentence(
         step=lambda prefix, _: FormalizeFOLConstraint(
             sentence=sentence,
             previous_formalizations=previous_formalizations,
-            step=step_type,
+            step_type=step_type,
             prefix=prefix,
         ).using(lambda p: p.formalize, FormalizeIP),
         process=lambda formalization_yaml, _: check_constraints(
@@ -173,7 +152,7 @@ def folio_iterative_naive(
     puzzle: str,
 ) -> Strategy[Branch | Fail, FolioIterativeIP, bool | None]:
     sentences = puzzle.strip().split("\n")
-    previous_formalizations: list[str] = []
+    previous_formalizations: list[str] = [""] * len(sentences)
     solution: bool | None = None
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
 
@@ -184,13 +163,13 @@ def folio_iterative_naive(
         formalization_response = yield from dp.branch(
             formalize_single_sentence(
                 sentence=sentence,
-                previous_formalizations=previous_formalizations,
+                previous_formalizations=previous_formalizations[:step_index],
                 step_type=step_type,
             ).using(lambda p: p.single_sentence, FolioIterativeIP),
         )
         assert isinstance(formalization_response, Z3Response)
         if step_type == "Constraint":
-            previous_formalizations.append(
+            previous_formalizations[step_index] = (
                 formalization_response.formalizations[-1]
             )
         if step_type == "Conclusion":
@@ -218,6 +197,13 @@ def check_constraints(
             meta={
                 "error": "The formalization is empty. No YAML content found."
             },
+        )
+    if formalization_yaml.strip() == "nop":
+        return Z3Response(
+            status="nop",
+            formalizations=[formalization_yaml],
+            model=None,
+            error=None,
         )
     # if blacklist, for each item in blacklist, check if additional + item implies formalization_yaml
     # and additional + formalization_yaml implies item. If so, they are equivalent and we should return an error.
@@ -331,14 +317,25 @@ def folio_oneshot_policy(
     reasoning_effort: dp.ReasoningEffort = "low",
     temperature: float | None = None,
     max_rounds: int = 3,
+    reflect_if_sat: bool = False,
     timeout_in_seconds: float = Z3_TIMEOUT,
-) -> dp.Policy[Branch | Fail, FormalizeIP]:
+) -> dp.Policy[Branch | Fail, OneShotIP]:
     model = dp.standard_model(
         model_name, {"reasoning_effort": reasoning_effort}
     )
-    return dp.dfs(max_depth=max_rounds) & FormalizeIP(
+    formalizeIP = FormalizeIP(
         formalize=dp.take(1) @ dp.few_shot(model, temperature=temperature),
         check=dp.exec @ elim_z3_compute(timeout_in_seconds) & None,
+    )
+    fallback_reflect = dp.dfs() & FormalizeIP(
+        formalize=dp.answer_with(["```\nnop\n```"]),
+        check=dp.exec @ elim_z3_compute(Z3_TIMEOUT) & None,
+    )
+    return dp.dfs(max_depth=max_rounds) & OneShotIP(
+        formalizeIP=formalizeIP,
+        reflect_if_sat=(dp.dfs() & formalizeIP).or_else(fallback_reflect)
+        if reflect_if_sat
+        else fallback_reflect,
     )
 
 
@@ -394,41 +391,3 @@ if __name__ == "__main__":
         .collect(budget=budget, num_generated=1)
     )
     print(res[0].tracked.value)
-
-
-# @strategy
-# def folio_baseline(
-#     puzzle: str,
-# ) -> Strategy[Branch | Fail, FormalizeIP, bool | None]:
-#     sentences = puzzle.strip().split("\n")
-#     previous_formalizations: list[str] = []
-#     solution: bool | None = None
-#     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
-
-#     for step_index, sentence in enumerate(sentences):
-#         step_type: StepType = (
-#             "Conclusion" if step_index == len(sentences) - 1 else "Constraint"
-#         )
-#         formalization_response = yield from dp.interact(
-#             step=lambda prefix, _,: FormalizeFOLConstraint(
-#                 sentence=sentence,
-#                 previous_formalizations=previous_formalizations,
-#                 step=step_type,
-#                 prefix=prefix,
-#             ).using(lambda p: p.formalize, FormalizeIP),
-#             process=lambda formalization_yaml, _: check_constraints(
-#                 formalization_yaml, step_type, add_permanently=True
-#             ).using(dp.just_compute),
-#         )
-#         assert isinstance(formalization_response, Z3Response)
-#         if step_type == "Constraint":
-#             previous_formalizations.append(
-#                 formalization_response.formalizations[-1]
-#             )
-#         if step_type == "Conclusion":
-#             if formalization_response.status == "unknown":
-#                 solution = None
-#             else:
-#                 solution = formalization_response.status == "unsat"
-
-#     return solution

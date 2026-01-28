@@ -50,7 +50,7 @@ class Z3Response:
     """
 
     formalizations: list[str]
-    status: str
+    status: Literal["sat", "unsat", "unknown", "error", "not_run", "nop"]
     model: str | None
     error: str | None
 

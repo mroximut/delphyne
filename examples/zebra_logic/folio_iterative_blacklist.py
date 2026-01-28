@@ -9,6 +9,7 @@ from folio_baseline import (
     StepType,
     check_constraints,  # type: ignore
     elim_z3_compute,
+    reflect_if_sat,
 )
 from z3_tools import Z3Response
 
@@ -21,38 +22,7 @@ from delphyne import Branch, Fail, Strategy, strategy
 @dataclass
 class FolioIterativeIP:
     single_sentence: dp.Policy[Branch | Fail, FormalizeIP]
-    iterate_transformer: dp.StreamTransformer
-
-
-# @dataclass
-# class FormalizeFOLConstraint(dp.Query[str]):
-#     sentence: str
-#     previous_formalizations: list[str]
-#     step: StepType
-#     blacklist: Blacklist | None = None
-
-#     __parser__ = dp.last_code_block.trim
-
-
-# @strategy
-# def check_constraints_mock(
-#     formalization_yaml: str,
-#     step_type: StepType,
-#     add_permanently: bool,
-#     additional_formalizations: list[str] = [],
-# ) -> "Strategy[Compute, object, Z3Response | dp.Error | str]":
-#     def f(x: int) -> int:
-#         return x
-
-#     x = yield from dp.compute(f)(1)
-#     assert x == 1
-#     if step_type == "Constraint":
-#         return formalization_yaml
-#     else:
-#         return dp.Error(label="mock")
-#         # return Z3Response(
-#         #    formalizations=[], status="unsat", model=None, error=None
-#         # )
+    reflect_if_sat: dp.Policy[Branch | Fail, FormalizeIP]
 
 
 @strategy
@@ -60,6 +30,7 @@ def formalize_single_sentence_blacklist(
     sentence: str,
     previous_formalizations: list[str],
     step_type: StepType,
+    context: list[str] | None = None,
     blacklist: Blacklist | None = None,
 ) -> Strategy[
     Branch | Fail, FormalizeIP, tuple[Z3Response | dp.Error, Blacklist]
@@ -89,8 +60,9 @@ def formalize_single_sentence_blacklist(
         FormalizeFOLConstraint(
             sentence=sentence,
             previous_formalizations=previous_formalizations,
-            step=step_type,
+            step_type=step_type,
             blacklist=blacklist,
+            context=context,
         ).using(lambda p: p.formalize, FormalizeIP)
     )
     formalization_str: str = cast(
@@ -121,8 +93,9 @@ def folio_iterative_blacklist(
     puzzle: str,
 ) -> Strategy[Branch | Fail, FolioIterativeIP, bool | None]:
     sentences = puzzle.strip().split("\n")
-    previous_formalizations: list[str] = []
+    previous_formalizations: list[str] = [""] * len(sentences)
     solution: bool | None = None
+    response: Z3Response | None = None
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
 
     for step_index, sentence in enumerate(sentences):
@@ -133,36 +106,58 @@ def folio_iterative_blacklist(
             dp.iterate(
                 lambda prior: formalize_single_sentence_blacklist(
                     sentence=sentence,
-                    previous_formalizations=previous_formalizations,
+                    previous_formalizations=previous_formalizations[
+                        :step_index
+                    ],
                     step_type=step_type,
+                    context=sentences,
                     blacklist=prior,
                 ).using(lambda p: p.single_sentence, FolioIterativeIP),
             ),
         )
         if isinstance(formalization_response, dp.Error):
             yield from dp.fail(formalization_response.label)
-        assert isinstance(formalization_response, Z3Response)
-        if step_type == "Constraint":
-            previous_formalizations.append(
+        else:
+            # assert isinstance(formalization_response, Z3Response)
+            previous_formalizations[step_index] = (
                 formalization_response.formalizations[-1]
             )
-        if step_type == "Conclusion":
-            if formalization_response.status == "unknown":
-                solution = None
+            if step_type == "Conclusion":
+                response = formalization_response
+                break
+
+    assert response is not None
+    match response.status:
+        case "sat":
+            if response.model is not None:
+                model = response.model
+                refined_response = yield from dp.branch(
+                    reflect_if_sat(
+                        sentences=sentences,
+                        formalizations=previous_formalizations,
+                        model=model,
+                    ).using(lambda p: p.reflect_if_sat, FolioIterativeIP)
+                )
+                solution = refined_response.status == "unsat"
             else:
-                solution = formalization_response.status == "unsat"
-            break
+                solution = False
+        case "unsat":
+            solution = True
+        case _:
+            solution = None
 
     return solution
 
 
 @dp.ensure_compatible(formalize_single_sentence_blacklist)
+@dp.ensure_compatible(reflect_if_sat)
 def formalize_single_policy(
     model_name: str = "gpt-5-nano",
     reasoning_effort: dp.ReasoningEffort = "low",
     temperature: float | None = None,
     majority_vote_size: int | None = None,
     timeout_in_seconds: float = Z3_TIMEOUT,
+    max_depth: int = 1,
 ) -> dp.Policy[Branch | Fail, FormalizeIP]:
     model = dp.standard_model(
         model_name, {"reasoning_effort": reasoning_effort}
@@ -178,7 +173,7 @@ def formalize_single_policy(
         formalize=pp,
         check=dp.exec @ elim_z3_compute(timeout_in_seconds) & None,
     )
-    sp = dp.dfs()
+    sp = dp.dfs(max_depth=max_depth)
     return sp & ip
 
 
@@ -189,8 +184,10 @@ def folio_iterative_blacklist_policy(
     max_retries_per_sentence: int = 2,
     model_name: str = "gpt-5-nano",
     reasoning_effort: dp.ReasoningEffort = "low",
+    reflect_if_sat: bool = False,
     temperature: float | None = None,
     majority_vote_size: int | None = None,
+    max_depth_for_reflect: int = 2,
 ) -> dp.Policy[Branch | Fail, FolioIterativeIP]:
     def make():
         per_attempt = dp.BudgetLimit(
@@ -199,18 +196,25 @@ def folio_iterative_blacklist_policy(
         sp = dp.with_budget(per_attempt) @ dp.dfs(
             max_branching=max_retries_per_sentence
         )
+        fallback_reflect = dp.dfs() & FormalizeIP(
+            formalize=dp.answer_with(["```\nnop\n```"]),
+            check=dp.exec @ elim_z3_compute(Z3_TIMEOUT) & None,
+        )
+        formalize = formalize_single_policy(
+            model_name,
+            reasoning_effort,
+            temperature,
+            majority_vote_size,
+            max_depth=max_depth_for_reflect,
+        )
         ip = FolioIterativeIP(
-            single_sentence=formalize_single_policy(
-                model_name,
-                reasoning_effort,
-                temperature,
-                majority_vote_size,
-            ),
-            iterate_transformer=dp.with_budget(
-                dp.BudgetLimit({dp.NUM_REQUESTS: max_retries_per_sentence})
-            ),
+            single_sentence=formalize,
+            reflect_if_sat=formalize.or_else(fallback_reflect)
+            if reflect_if_sat
+            else fallback_reflect,
         )
         return sp & ip
 
+    # sequence does not work as intented, does max_branching count as resource?
     # return dp.sequence((make() for _ in range(max_restarts)))
     return make()
