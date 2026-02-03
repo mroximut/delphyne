@@ -5,3 +5,5 @@ delphyne.egg-info
 .DS_Store
 __pycache__
 *.h5.lock
+.history/
+examples/find_invariants/delphyne_find_invariants_example.egg-info/
