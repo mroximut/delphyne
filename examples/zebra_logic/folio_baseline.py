@@ -1,13 +1,16 @@
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Literal, Never, Sequence
 
-from z3_tools import Z3Response, run_fol_in_z3
+from z3_tools import SessionId, Z3Response, run_fol_in_z3
 
 import delphyne as dp
 from delphyne import Branch, Compute, Fail, Strategy, strategy
 
 type StepType = Literal["Constraint", "Conclusion", "All"]
+type ReflectFlagTag = Literal[
+    "never", "always", "only_if_sat", "only_if_unsat"
+]
+type StyleFlagTag = Literal["literally", "normal", "implicitly"]
 type Blacklist = Sequence[str | dp.Error]
 Z3_TIMEOUT = 5.0
 
@@ -33,7 +36,7 @@ class FormalizeIP:
 @dataclass
 class OneShotIP:
     formalizeIP: FormalizeIP
-    reflect_if_sat: dp.Policy[Branch | Fail, FormalizeIP]
+    reflect: dp.Policy[Branch | Fail, FormalizeIP]
 
 
 @dataclass
@@ -51,23 +54,75 @@ class ReflectIfSat(dp.Query[dp.Response[str, Never]]):
     __parser__ = dp.last_code_block.trim.response
 
 
+@dataclass
+class ReflectIfUnsat(dp.Query[dp.Response[str, Never]]):
+    sentences: list[str]
+    formalizations: list[str]
+    unsat_core: str
+    prefix: dp.AnswerPrefix
+
+    __parser__ = dp.last_code_block.trim.response
+
+
+@dataclass
+class ReflectFlag(dp.FlagQuery[ReflectFlagTag]):
+    """
+    Flag that indicates reflection behavior.
+    """
+
+
+@dataclass
+class StyleFlag(dp.FlagQuery[StyleFlagTag]):
+    """
+    Flag that indicates the style of formalization.
+    """
+
+
+# def _pop_section(formalization_yaml: str, section_name: str) -> str:
+#     data = yaml.safe_load(formalization_yaml)
+#     section = data.get(section_name, [])
+#     if section:
+#         data.pop(section_name, None)
+#     return yaml.safe_dump(data)
+
+
+# def _adjust_formalizations(
+#     formalizations: list[str],
+#     refined_formalization: str,
+# ) -> list[str]:
+#     if refined_formalization.strip() == "nop":
+#         return formalizations
+#     refined_data = yaml.safe_load(refined_formalization)
+#     if "Conclusion" in refined_data:
+#         for i in range(len(formalizations) - 1):
+#             formalizations[i] = _pop_section(formalizations[i], "Conclusion")
+#     return formalizations
+
+
 @strategy
-def reflect_if_sat(
+def reflect(
+    sat_or_unsat: Literal["sat", "unsat"],
     sentences: list[str],
     formalizations: list[str],
-    model: str,
+    model_or_unsat_core: str,
 ) -> Strategy[Branch | Fail, FormalizeIP, Z3Response]:
+    query_class = ReflectIfSat if sat_or_unsat == "sat" else ReflectIfUnsat
     response = yield from dp.interact(
-        step=lambda prefix, _: ReflectIfSat(
-            sentences=sentences,
-            formalizations=formalizations,
-            model=model,
-            prefix=prefix,
+        step=lambda prefix, _: query_class(
+            sentences,
+            formalizations,
+            model_or_unsat_core,
+            prefix,
         ).using(lambda p: p.formalize, FormalizeIP),
         process=lambda refined_formalization, _: check_constraints(
             refined_formalization,
             step_type="All",
             add_permanently=False,
+            # additional_formalizations=_adjust_formalizations(
+            #     formalizations, refined_formalization
+            # )
+            # if sat_or_unsat == "sat"
+            # else [],
         ).using(lambda p: p.check, FormalizeIP),
     )
     return response
@@ -77,6 +132,7 @@ def reflect_if_sat(
 class FormalizeFOLOneShot(dp.Query[dp.Response[str, Never]]):
     sentences: list[str]
     prefix: dp.AnswerPrefix
+    style: StyleFlagTag = "normal"
 
     __parser__ = dp.last_code_block.trim.response
 
@@ -84,13 +140,19 @@ class FormalizeFOLOneShot(dp.Query[dp.Response[str, Never]]):
 @strategy
 def folio_oneshot(
     puzzle: str,
-) -> Strategy[Branch | Fail, OneShotIP, bool | None]:
+) -> Strategy[
+    Branch | Fail | dp.Flag[ReflectFlag] | dp.Flag[StyleFlag],
+    OneShotIP,
+    tuple[bool | None, bool | None],
+]:
     sentences = puzzle.strip().split("\n")
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
+    style_flag = yield from dp.get_flag(StyleFlag)
     response = yield from dp.interact(
         step=lambda prefix, _,: FormalizeFOLOneShot(
             sentences=sentences,
             prefix=prefix,
+            style=style_flag,
         ).using(lambda p: p.formalizeIP.formalize, OneShotIP),
         process=lambda formalization_yaml, _: check_constraints(
             formalization_yaml, step_type="All", add_permanently=False
@@ -98,26 +160,52 @@ def folio_oneshot(
     )
     # assert isinstance(formalization_response, Z3Response)
     assert response is not None
+    reflection_flag = yield from dp.get_flag(ReflectFlag)
     match response.status:
         case "sat":
-            if response.model is not None:
+            first_solution = False
+            if (
+                reflection_flag in ("always", "only_if_sat")
+                and response.model is not None
+            ):
                 model = response.model
                 refined_response = yield from dp.branch(
-                    reflect_if_sat(
+                    reflect(
+                        sat_or_unsat="sat",
                         sentences=sentences,
                         formalizations=response.formalizations,
-                        model=model,
-                    ).using(lambda p: p.reflect_if_sat, OneShotIP)
+                        model_or_unsat_core=model,
+                    ).using(lambda p: p.reflect, OneShotIP)
                 )
                 solution = refined_response.status == "unsat"
             else:
                 solution = False
         case "unsat":
-            solution = True
+            first_solution = True
+            if (
+                reflection_flag in ("always", "only_if_unsat")
+                and response.model is not None
+            ):
+                unsat_core = response.model
+                refined_response = yield from dp.branch(
+                    reflect(
+                        sat_or_unsat="unsat",
+                        sentences=sentences,
+                        formalizations=response.formalizations,
+                        model_or_unsat_core=unsat_core,
+                    ).using(lambda p: p.reflect, OneShotIP)
+                )
+                solution = (
+                    refined_response.status == "unsat"
+                    or refined_response.status == "nop"
+                )
+            else:
+                solution = True
         case _:
+            first_solution = None
             solution = None
 
-    return solution
+    return (first_solution, solution)
     # if formalization_response.status == "unknown":
     #     return None
     # else:
@@ -190,6 +278,7 @@ def check_constraints(
     additional_formalizations: list[str] = [],
     blacklist: Blacklist = [],
     timeout_in_seconds: float | None = None,
+    session_id: SessionId | None = None,
 ) -> Strategy[Compute, object, Z3Response | dp.Error]:
     if not formalization_yaml.strip():
         return dp.Error(
@@ -221,6 +310,7 @@ def check_constraints(
                     permanently=False,
                     equivalence_target=black,
                     timeout_in_seconds=timeout_in_seconds,
+                    session_id=session_id,
                 )
                 old_implies_new = yield from dp.compute(run_fol_in_z3)(
                     old_formalizations,
@@ -228,6 +318,7 @@ def check_constraints(
                     permanently=False,
                     equivalence_target=formalization_yaml,
                     timeout_in_seconds=timeout_in_seconds,
+                    session_id=session_id,
                 )
                 if (
                     new_implies_old.status == "unsat"
@@ -248,6 +339,7 @@ def check_constraints(
         step_type,
         permanently=False,
         timeout_in_seconds=timeout_in_seconds,
+        session_id=session_id,
     )
     if response.status == "error":
         return dp.Error(
@@ -279,6 +371,7 @@ def check_constraints(
             step_type,
             permanently=True,
             timeout_in_seconds=timeout_in_seconds,
+            session_id=session_id,
         )
     return response
 
@@ -317,9 +410,12 @@ def folio_oneshot_policy(
     reasoning_effort: dp.ReasoningEffort = "low",
     temperature: float | None = None,
     max_rounds: int = 3,
-    reflect_if_sat: bool = False,
+    style_flag: StyleFlagTag = "normal",
+    reflect_flag: ReflectFlagTag = "never",
     timeout_in_seconds: float = Z3_TIMEOUT,
-) -> dp.Policy[Branch | Fail, OneShotIP]:
+) -> dp.Policy[
+    Branch | Fail | dp.Flag[ReflectFlag] | dp.Flag[StyleFlag], OneShotIP
+]:
     model = dp.standard_model(
         model_name, {"reasoning_effort": reasoning_effort}
     )
@@ -331,11 +427,13 @@ def folio_oneshot_policy(
         formalize=dp.answer_with(["```\nnop\n```"]),
         check=dp.exec @ elim_z3_compute(Z3_TIMEOUT) & None,
     )
-    return dp.dfs(max_depth=max_rounds) & OneShotIP(
+    return dp.dfs(max_depth=max_rounds) @ dp.elim_flag(
+        ReflectFlag, reflect_flag
+    ) @ dp.elim_flag(StyleFlag, style_flag) & OneShotIP(
         formalizeIP=formalizeIP,
-        reflect_if_sat=(dp.dfs() & formalizeIP).or_else(fallback_reflect)
-        if reflect_if_sat
-        else fallback_reflect,
+        reflect=(dp.dfs(max_depth=max_rounds) & formalizeIP).or_else(
+            fallback_reflect
+        ),
     )
 
 
@@ -372,22 +470,23 @@ def elim_z3_compute(timeout: float):
 
 
 if __name__ == "__main__":
-    example_puzzle = """
-        All humans are mortal.
-        Socrates is a human.
-        Conclusion: Socrates is mortal.
-    """
+    pass
+    # example_puzzle = """
+    #     All humans are mortal.
+    #     Socrates is a human.
+    #     Conclusion: Socrates is mortal.
+    # """
 
-    budget = dp.BudgetLimit({dp.NUM_REQUESTS: 4})
-    res, _ = (
-        folio_iterative_naive(example_puzzle)
-        .run_toplevel(
-            dp.PolicyEnv(
-                demonstration_files=[],
-                prompt_dirs=[Path(__file__).parent / "prompts"],
-            ),
-            folio_iterative_policy(),
-        )
-        .collect(budget=budget, num_generated=1)
-    )
-    print(res[0].tracked.value)
+    # budget = dp.BudgetLimit({dp.NUM_REQUESTS: 4})
+    # res, _ = (
+    #     folio_iterative_naive(example_puzzle)
+    #     .run_toplevel(
+    #         dp.PolicyEnv(
+    #             demonstration_files=[],
+    #             prompt_dirs=[Path(__file__).parent / "prompts"],
+    #         ),
+    #         folio_iterative_policy(),
+    #     )
+    #     .collect(budget=budget, num_generated=1)
+    # )
+    # print(res[0].tracked.value)

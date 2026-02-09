@@ -95,6 +95,43 @@ type Formula = (
 )
 
 
+def pretty_print(formula: Formula) -> str:
+    match formula:
+        case Predicate(name=name, args=args):
+            args_str = ", ".join(pretty_print_arg(a) for a in args)
+            return f"{name}({args_str})"
+        case Equals(left=left, right=right):
+            return (
+                f"Equals({pretty_print_arg(left)}, {pretty_print_arg(right)})"
+            )
+        case Not(formula=sub):
+            return f"Not({pretty_print(sub)})"
+        case And(left=left, right=right):
+            return f"And({pretty_print(left)}, {pretty_print(right)})"
+        case Or(left=left, right=right):
+            return f"Or({pretty_print(left)}, {pretty_print(right)})"
+        case Xor(left=left, right=right):
+            return f"Xor({pretty_print(left)}, {pretty_print(right)})"
+        case Implies(antecedent=antecedent, consequent=consequent):
+            return f"Implies({pretty_print(antecedent)}, {pretty_print(consequent)})"
+        case ForAll(variable=variable, body=body):
+            return f"ForAll({variable.name}, {pretty_print(body)})"
+        case Exists(variable=variable, body=body):
+            return f"Exists({variable.name}, {pretty_print(body)})"
+        case Iff(left=left, right=right):
+            return f"Iff({pretty_print(left)}, {pretty_print(right)})"
+        case _:
+            assert_never(formula)
+
+
+def pretty_print_arg(arg: Term) -> str:
+    match arg:
+        case BoundedVar(name=name):
+            return name
+        case Const(name=name):
+            return name
+
+
 class FOLParser:
     @staticmethod
     def parse(

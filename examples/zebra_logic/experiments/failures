@@ -102,3 +102,36 @@ if Literal is sat -> show counterexample and refine
 if Implicit is unsat -> show only relevant set(unsat core) implying the consequence and ask if anything to left out
 
 Then majority vote over postprocessed Literal -- Normal -- postprocessed Implicit. 
+
+
+
+
+
+
+
+
+### Aggregate
+364,gpt-5-nano,low,0.01,True,4,4,7530,5504,4725,0.00201882,364,False,True,False,d4f0f2bc-f094-419d-a76f-35709e8293f8
+Normal correct solution unsat
+
+25,gpt-5-nano,low,0.01,True,6,6,11746,6912,9521,0.00408466,25,False,True,False,51d7b804-5275-4cfa-ad58-e3566e5b97a34
+Impilicitly correct solution unsat
+
+1299,gpt-5-nano,low,0.01,True,9,9,23114,12672,12195,0.00546346,1299,False,True,False,8958a55c-be18-4bd5-8bf8-f5c5d47bfec6
+Normal correct solution unsat
+
+881,gpt-5-nano,low,0.01,False,15,15,41250,27136,7438,0.00381658,881,,False,False,892bcc82-6213-4e5e-80ff-fda5d0fca607
+syntax unmatched )
+
+
+
+---------------------------------------
+failure modes --> graphics
+experiments
+diversity 
+design of delphyne
+aggregation if at least one unsat
+Learning through self reflection lean: Look at the traces programmatically
+logging emit message
+
+Join: reset z3 also at the beginning

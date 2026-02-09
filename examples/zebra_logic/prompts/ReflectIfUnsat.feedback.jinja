@@ -1,0 +1,16 @@
+{% if feedback.meta and feedback.meta.get('error') and feedback.meta.get('formalization_yaml') %}
+
+Tried to encode the following formalization into Z3:
+
+"""
+{{ feedback.meta['formalization_yaml'] }}
+"""
+
+but encountered the following error:
+
+"""
+{{ feedback.meta['error'] }}
+"""
+
+{% endif %}
+

@@ -1,0 +1,22 @@
+The logic puzzle is:
+{{  query.sentences | join("\n") }}
+
+The formalizations are:
+{{ query.formalizations | join("\n\n") }}
+
+The model found by Z3 that satisfies the above constraints is:
+{{ query.unsat_core }}
+
+
+Reflect on the `unsat_core` returned by Z3 for the given `formalizations`
+of the logic puzzle which is given as `sentences`.
+The `unsat_core` contains the set of formulae that are conflicting with each other. The conclusion appears there as negated.
+If there is in fact not a conflict between the natural language versions of those formulae,
+ refine the formalizations to resolve the conflict.
+If refinement is necessary, create a new formalization of the puzzle from scratch. Answer with a single triple backticks YAML code block containing the four sections: `Predicates`, `Constants`, `Constraints`, and `Conclusion`, that capture **everything** about the logic puzzle correctly. Also add the formalizations from before that do not need refinement.
+If no refinement is needed, answer with `nop` inside triple backticks
+code block.
+You must be a bit conservative in changing the existing formalizations, or adding new formalizations. In particular, do not artificially weaken or leave out constraints just to make the puzzle satisfiable. We are not looking for trivial refinements that make the model satisfiable.  It is very likely that the formalizations are correct as is and that the conclusion of the puzzle indeed follows from the constraints. In that case, there is no need for refinement, that is also a valid answer, so you would respond with:
+```yaml
+nop
+```

@@ -9,7 +9,7 @@ from folio_baseline import (
     StepType,
     check_constraints,  # type: ignore
     elim_z3_compute,
-    reflect_if_sat,
+    reflect,
 )
 from z3_tools import Z3Response
 
@@ -132,10 +132,11 @@ def folio_iterative_blacklist(
             if response.model is not None:
                 model = response.model
                 refined_response = yield from dp.branch(
-                    reflect_if_sat(
+                    reflect(
+                        "sat",
                         sentences=sentences,
                         formalizations=previous_formalizations,
-                        model=model,
+                        model_or_unsat_core=model,
                     ).using(lambda p: p.reflect_if_sat, FolioIterativeIP)
                 )
                 solution = refined_response.status == "unsat"
@@ -150,7 +151,7 @@ def folio_iterative_blacklist(
 
 
 @dp.ensure_compatible(formalize_single_sentence_blacklist)
-@dp.ensure_compatible(reflect_if_sat)
+@dp.ensure_compatible(reflect)
 def formalize_single_policy(
     model_name: str = "gpt-5-nano",
     reasoning_effort: dp.ReasoningEffort = "low",

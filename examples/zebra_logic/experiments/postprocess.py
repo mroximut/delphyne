@@ -18,6 +18,7 @@ ONEHOT = "output_27jan/oneshot_experiment"
 BLACKLIST = "output_27jan/iterative_blacklist_experiment"
 ONESHOT_REFLECT = "output_27jan_reflect/oneshot_experiment"
 BLACKLIST_REFLECT = "output_27jan_reflect/iterative_blacklist_experiment"
+AGGREGATE = "output_27jan_reflect/aggregate_experiment"
 
 
 def process_results(
@@ -61,7 +62,9 @@ def process_results(
                 "bench_id": bench_id,
                 "result": result,
                 "ground_truth": ground_truth,
-                "correct": result == ground_truth,
+                "correct": None
+                if ground_truth not in [True, False]
+                else result == ground_truth,
                 "config_hash": hsh,
             }
         )
@@ -85,7 +88,7 @@ def get_correctness_ratio(
         df_effort = merged_df[merged_df["reasoning_effort"] == effort]
         df_effort = df_effort[df_effort["reflect_if_sat"].isnull()]
     correct = df_effort["correct"].sum()
-    total = len(df_effort)
+    total = len(df_effort["ground_truth"].dropna())
     return int(correct), int(total)
 
 
@@ -100,9 +103,10 @@ if __name__ == "__main__":
     process_results(BLACKLIST)
     process_results(ONESHOT_REFLECT)
     process_results(BLACKLIST_REFLECT)
+    process_results(AGGREGATE)
 
     for effort_level, reflect_if_sat in [
-        (e, f) for e in ["low"] for f in [False, True]
+        (e, f) for e in ["low"] for f in [False]
     ]:
         ratio_onehot = get_correctness_ratio(
             merged_df_path(ONEHOT), effort_level, reflect_if_sat
@@ -127,9 +131,12 @@ if __name__ == "__main__":
     ratio_blacklist_reflect = get_correctness_ratio(
         merged_df_path(BLACKLIST_REFLECT), "low", True
     )
+    ratio_aggregate = get_correctness_ratio(merged_df_path(AGGREGATE), "low")
+
     print(
         f"Effort: low | "
         f"Reflect if sat: True | "
         f"One-shot Reflect: {ratio_oneshot_reflect[0]}/{ratio_oneshot_reflect[1]} | "
-        f"Iterative Blacklist Reflect: {ratio_blacklist_reflect[0]}/{ratio_blacklist_reflect[1]}"
+        f"Iterative Blacklist Reflect: {ratio_blacklist_reflect[0]}/{ratio_blacklist_reflect[1]} | "
+        f"Aggregate: {ratio_aggregate[0]}/{ratio_aggregate[1]}"
     )

@@ -2,9 +2,21 @@ from dataclasses import dataclass
 from typing import Literal
 
 import z3  # type: ignore
-from fol import Not, PredicateDef, YamlFormalizationParser, Z3Interpreter
+from fol import (
+    Not,
+    PredicateDef,
+    YamlFormalizationParser,
+    Z3Interpreter,
+    pretty_print,
+)
 
 type StepType = Literal["Constraint", "Conclusion", "All"]
+type SessionId = int
+
+_solver_map = dict[SessionId, z3.Solver]()
+_context_map = dict[SessionId, dict[str, object]]()
+_predicate_map = dict[SessionId, set[PredicateDef]]()
+_constant_map = dict[SessionId, set[str]]()
 
 _global_z3_solver: z3.Solver | None = None
 _global_z3_context: dict[str, object] | None = None
@@ -16,7 +28,36 @@ _base_context: dict[str, object] = {
 }
 
 
-def init_global_z3_solver() -> None:
+def _init_sesion(id: SessionId):
+    if id in _solver_map:
+        return
+    _solver_map[id] = z3.Solver()
+    _context_map[id] = _base_context.copy()
+    _predicate_map[id] = set()
+    _constant_map[id] = set()
+
+
+def get_session_z3_solver(
+    id: SessionId,
+) -> tuple[z3.Solver, dict[str, object]]:
+    if id not in _solver_map:
+        _init_sesion(id)
+    assert id in _solver_map
+    assert id in _context_map
+    return _solver_map[id], _context_map[id]
+
+
+def _get_session_predicates_and_constants(
+    id: SessionId,
+) -> tuple[set[PredicateDef], set[str]]:
+    if id not in _predicate_map or id not in _constant_map:
+        _init_sesion(id)
+    assert id in _predicate_map
+    assert id in _constant_map
+    return _predicate_map[id], _constant_map[id]
+
+
+def _init_global_z3_solver():
     global _global_z3_solver, _global_z3_context
     if _global_z3_solver is not None:
         return
@@ -24,10 +65,16 @@ def init_global_z3_solver() -> None:
     _global_z3_context = _base_context.copy()
 
 
+def _reset_global_z3_solver():
+    global _global_z3_solver, _global_z3_context
+    _global_z3_solver = z3.Solver()
+    _global_z3_context = _base_context.copy()
+
+
 def _get_global_z3_solver() -> tuple[z3.Solver, dict[str, object]]:
     global _global_z3_solver, _global_z3_context
     if _global_z3_solver is None:
-        init_global_z3_solver()
+        _init_global_z3_solver()
     assert _global_z3_solver is not None
     assert _global_z3_context is not None
     return _global_z3_solver, _global_z3_context
@@ -62,14 +109,23 @@ def run_fol_in_z3(
     permanently: bool,
     equivalence_target: str | None = None,
     timeout_in_seconds: float | None = None,
+    session_id: SessionId | None = None,
 ) -> Z3Response:
     if timeout_in_seconds is not None:
         z3.set_param("timeout", int(timeout_in_seconds * 1000))  # type: ignore
     else:
         z3.set_param("timeout", 0)  # type: ignore
 
-    solver, context = _get_global_z3_solver()
-    predicates, constants = _get_global_predicates_and_constants()
+    if session_id is None:
+        solver, context = _get_global_z3_solver()
+        predicates, constants = _get_global_predicates_and_constants()
+    else:
+        solver, context = get_session_z3_solver(session_id)
+        predicates, constants = _get_session_predicates_and_constants(
+            session_id
+        )
+
+    solver.set(unsat_core=True)  # type: ignore
     status = "not_run"
     model_str = None
     error = None
@@ -106,23 +162,23 @@ def run_fol_in_z3(
             assert context.get(c) is None
             Z3Interpreter.register_constant(c, new_context)
         if formulae:
-            solver.push()
+            # solver.push()
             pushed += 1
             for f in formulae:
                 z3_formula = Z3Interpreter.interpret(f, context | new_context)
-                solver.add(z3_formula)  # type: ignore
+                solver.assert_and_track(z3_formula, pretty_print(f))  # type: ignore
         if conclusion:
-            solver.push()
+            # solver.push()
             pushed += 1
             for q in conclusion:
                 z3_conclusion = Z3Interpreter.interpret(
                     Not(q), context | new_context
                 )
-                solver.add(z3_conclusion)  # type: ignore
+                solver.assert_and_track(z3_conclusion, pretty_print(Not(q)))  # type: ignore
 
         if equivalence_target:
             for f in eq_formulae:
-                solver.push()
+                # solver.push()
                 pushed += 1
                 z3_formula = Z3Interpreter.interpret(
                     Not(f), context | new_context
@@ -135,7 +191,8 @@ def run_fol_in_z3(
             model_str = str(model)
             status = "sat"
         elif result == z3.unsat:
-            model_str = None
+            model = solver.unsat_core()
+            model_str = str(model)
             status = "unsat"
         else:
             model_str = None
@@ -146,9 +203,11 @@ def run_fol_in_z3(
         model_str = None
         error = f"{type(exc).__name__}: {str(exc)}"
     finally:
-        if pushed and not permanently:
-            for _ in range(pushed):
-                solver.pop()
+        # if pushed and not permanently:
+        #     for _ in range(pushed):
+        #         solver.pop()
+        if not permanently:
+            _reset_global_z3_solver()
         if permanently:
             predicates.update(new_predicates)
             constants.update(new_constants)

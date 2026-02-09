@@ -60,16 +60,3 @@ Tips:
 - If the top-level operator is And, break down the formula into multiple
 constraints listed under "Constraints".
 - And, Or has exactly 2 arguments, use nested And, Or for more than 2 arguments.
-
-
-This the list of sentences to formalize:
-
-{{ query.sentences | join("\n") }}
-
-
-{%if query.style == "literally"%}
-Formalize the sentences literally as they are, without adding any implicit constraints or making any assumptions.
-{%endif%}
-{%if query.style == "implicitly"%}
-Formalize the sentences including implicit constraints and making reasonable assumptions as needed. Use your common sense to infer any missing information that might be relevant that is not explicitly stated in the sentences. First write the implicit constraints in natural language for yourself, then formalize everything adhering to the YAML format described above.
-{%endif%}
