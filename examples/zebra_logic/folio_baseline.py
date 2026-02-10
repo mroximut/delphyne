@@ -143,7 +143,7 @@ def folio_oneshot(
 ) -> Strategy[
     Branch | Fail | dp.Flag[ReflectFlag] | dp.Flag[StyleFlag],
     OneShotIP,
-    tuple[bool | None, bool | None],
+    tuple[list[str], tuple[bool | None, bool | None]],
 ]:
     sentences = puzzle.strip().split("\n")
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
@@ -161,6 +161,9 @@ def folio_oneshot(
     # assert isinstance(formalization_response, Z3Response)
     assert response is not None
     reflection_flag = yield from dp.get_flag(ReflectFlag)
+    refined_response = Z3Response(
+        formalizations=[], status="nop", model=None, error=None
+    )
     match response.status:
         case "sat":
             first_solution = False
@@ -205,7 +208,15 @@ def folio_oneshot(
             first_solution = None
             solution = None
 
-    return (first_solution, solution)
+    return [
+        reflection_flag,
+        style_flag,
+        *response.formalizations,
+        *refined_response.formalizations,
+    ], (
+        first_solution,
+        solution,
+    )
     # if formalization_response.status == "unknown":
     #     return None
     # else:

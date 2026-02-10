@@ -1,0 +1,13 @@
+correct,total,strategy_type,sequence_type,aggregation_type,reflection_type,oneshot_model_type,oneshot_reflect_type
+151,200,aggregate,mixed,majority_vote,mixed,,
+144,200,aggregate,mixed,majority_vote,never,,
+151,200,aggregate,mixed,majority_vote,only_if_sat,,
+162,200,aggregate,mixed,favor_unsat,mixed,,
+154,200,aggregate,mixed,favor_unsat,never,,
+163,200,aggregate,mixed,favor_unsat,only_if_sat,,
+170,200,aggregate,all_normal_reflect,majority_vote,always,,
+154,200,aggregate,all_normal_reflect,majority_vote,never,,
+172,200,aggregate,all_normal_reflect,majority_vote,only_if_sat,,
+167,200,aggregate,all_normal_reflect,favor_unsat,always,,
+166,200,aggregate,all_normal_reflect,favor_unsat,never,,
+167,200,aggregate,all_normal_reflect,favor_unsat,only_if_sat,,

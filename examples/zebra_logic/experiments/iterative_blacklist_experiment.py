@@ -18,11 +18,7 @@ configs_iterative = [
         max_dollar_budget=0.01,
         seed=0,
     )
-    for bench_id in [
-        id
-        for (n, id) in enumerate(fe.BENCHS.keys())
-        if n in fe.sample(len(fe.BENCHS), 50, seed=42)
-    ]
+    for bench_id in [id for id in fe.SAMPLE_IDS_9feb_200]
     for requests, retries, reasoning_effort, reflect in [
         # (20, 3, "minimal"),
         # (30, 3, "low", False),
@@ -38,5 +34,5 @@ if __name__ == "__main__":
         config_class=fe.IterativeBlacklistConfig,
         context=dp.workspace_execution_context(__file__),
         configs=configs_iterative,
-        output_dir=f"experiments/output_27jan_reflect/{dp.path_stem(__file__)}",
+        output_dir=f"experiments/output_9feb/{dp.path_stem(__file__)}",
     ).run_cli()

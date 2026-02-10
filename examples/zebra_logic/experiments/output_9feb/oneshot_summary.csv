@@ -1,0 +1,9 @@
+correct,total,strategy_type,sequence_type,aggregation_type,reflection_type,oneshot_model_type,oneshot_reflect_type
+162,200,blacklist,,,,iterative_blacklist,only_if_sat
+140,200,oneshot,mixed,,mixed,literal,always
+120,200,oneshot,mixed,,mixed,literal,never
+126,200,oneshot,mixed,,mixed,implicitly,always
+127,200,oneshot,mixed,,mixed,implicitly,never
+164,200,oneshot,all_normal_reflect,,always,normal,always
+166,200,oneshot,all_normal_reflect,,always,normal,only_if_sat
+151,200,oneshot,all_normal_reflect,,always,normal,never

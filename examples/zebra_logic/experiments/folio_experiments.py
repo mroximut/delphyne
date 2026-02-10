@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 
@@ -23,10 +24,12 @@ def ensure_solution(puzzle_id: int, solution: bool) -> bool:
 
 def load_folio_benchmark() -> dict[int, tuple[str, bool | None]]:
     df = pd.read_csv(SOLUTIONS_CSV)  #  type: ignore
-    benchmarks: dict[int, tuple[str, bool]] = {}
+    benchmarks: dict[int, tuple[str, bool | None]] = {}
     for _, row in df.iterrows():
         puzzle_id = int(row["example_id"])
-        puzzle = row["premises"] + "\n" + "Conclusion: " + row["conclusion"]
+        puzzle: str = (
+            row["premises"] + "\n" + "Conclusion: " + row["conclusion"]
+        )
         label = (
             True
             if row["label"] == "True"
@@ -41,11 +44,20 @@ def load_folio_benchmark() -> dict[int, tuple[str, bool | None]]:
 BENCHS = load_folio_benchmark()
 
 
-def sample(len_keys: int, len_samples: int, seed: int = 42) -> list[int]:
+def sample(keys: list[int], len_samples: int, seed: int = 42) -> list[int]:
     import random
 
     random.seed(seed)
-    return random.sample(range(len_keys), len_samples)
+    return random.sample(keys, len_samples)
+
+
+SAMPLE_IDS_9feb_200 = set(
+    [
+        id
+        for id in sample(list(BENCHS.keys()), len(BENCHS), seed=424242)
+        if BENCHS[id][1] is not None
+    ][:200]
+)
 
 
 @dataclass
@@ -156,6 +168,10 @@ class AggregateConfig:
     model_name: str
     reasoning_effort: dp.ReasoningEffort
     max_rounds_each: int = 5
+    sequence_type: Literal["mixed", "all_normal", "all_normal_reflect"] = (
+        "mixed"
+    )
+    aggregation_type: Literal["majority_vote", "favor_unsat"] = "majority_vote"
     temperature: float | None = None
     max_dollar_budget: float | None = 0.2
     seed: int = 0
@@ -172,6 +188,8 @@ class AggregateConfig:
                 "model_name": self.model_name,
                 "reasoning_effort": self.reasoning_effort,
                 "max_rounds_each": self.max_rounds_each,
+                "sequence_type": self.sequence_type,
+                "aggregation_type": self.aggregation_type,
             },
             budget=budget,
         )
