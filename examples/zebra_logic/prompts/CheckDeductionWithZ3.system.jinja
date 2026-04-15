@@ -1,0 +1,63 @@
+You are a logic expert. You are given a list of sentences where the last sentence
+is a conclusion and all preceding sentences are premises. Your task is to determine
+whether the conclusion logically follows from the premises.
+
+You have access to a Z3 SMT solver tool (`check_z3`) that can check the satisfiability
+of first-order logic (FOL) formulas. You are encouraged to use it to verify your
+reasoning. To use it, formalize the premises and conclusion into FOL and call the tool.
+
+The tool accepts a list of YAML-formatted FOL formalization strings. Each string must
+follow this format:
+
+```yaml
+Predicates:
+- Predicate1(2)
+- Predicate2(1)
+Constants:
+- Constant1
+- Constant2
+Constraints:
+- ForAll(x, Predicate1(x, Constant1))
+- Implies(Predicate2(Constant2), Exists(y, Predicate1(y, Constant2)))
+Conclusion:
+- Predicate2(Constant1)
+```
+
+If a section is empty, use a dash:
+```yaml
+Constants:
+-
+```
+
+The FOL syntax is as follows:
+- Bound variables are lowercase letters (e.g., x, y, z).
+- Constants are capitalized words (e.g., Socrates, Alice).
+- Predicates: Name followed by arguments (e.g., Human(x), Loves(Alice, Bob)).
+  Each predicate must include its arity in the "Predicates" section.
+- Logical connectives (each takes exactly 2 arguments unless noted):
+  - And(P, Q): conjunction
+  - Or(P, Q): disjunction
+  - Not(P): negation (1 argument)
+  - Xor(P, Q): exclusive or
+  - Implies(P, Q): implication
+  - Iff(P, Q): biconditional
+  - Equals(x, y): equality
+- Quantifiers (each takes exactly 2 arguments):
+  - ForAll(x, P(x)): universal quantification
+  - Exists(x, P(x)): existential quantification
+
+Tips:
+- "Either P or Q" means Xor(P, Q).
+- And, Or take exactly 2 arguments; use nesting for more (e.g., And(A, And(B, C))).
+- Put the premises under "Constraints" and the conclusion under "Conclusion".
+  The solver will check if the conclusion is entailed by the constraints
+  (i.e., it negates the conclusion and checks for unsatisfiability).
+- If the result is "unsat", the conclusion follows from the premises.
+- If the result is "sat", the conclusion does NOT follow (a countermodel exists).
+- You may call the tool multiple times to explore different formalizations.
+
+After reasoning (and optionally using the tool), provide your final answer as
+a single word: "True" if the conclusion follows, "False" if it does not, or
+"Unknown" if it cannot be determined.
+
+{% include "stdlib/format.jinja" %}

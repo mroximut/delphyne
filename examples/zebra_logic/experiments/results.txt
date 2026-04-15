@@ -1,0 +1,97 @@
+9 feb results:
+
+
+Correct: 162/200 (81.00%) for output_9feb/iterative_blacklist_experiment, strategy: blacklist, reflect_if_sat
+
+
+Correct: 151/200 (75.50%), strategy: aggregate, sequence_type: mixed, aggregation_type: majority_vote, reflection_type: mixed
+Correct: 144/200 (72.00%), strategy: aggregate, sequence_type: mixed, aggregation_type: majority_vote, reflection_type: never
+Correct: 151/200 (75.50%), strategy: aggregate, sequence_type: mixed, aggregation_type: majority_vote, reflection_type: only_if_sat
+Correct: 162/200 (81.00%), strategy: aggregate, sequence_type: mixed, aggregation_type: favor_unsat, reflection_type: mixed
+Correct: 154/200 (77.00%), strategy: aggregate, sequence_type: mixed, aggregation_type: favor_unsat, reflection_type: never
+Correct: 163/200 (81.50%), strategy: aggregate, sequence_type: mixed, aggregation_type: favor_unsat, reflection_type: only_if_sat
+
+Correct: 170/200 (85.00%), strategy: aggregate, sequence_type: all_normal_reflect, aggregation_type: majority_vote, reflection_type: always
+
+Correct: 154/200 (77.00%), strategy: aggregate, sequence_type: all_normal_reflect, aggregation_type: majority_vote, reflection_type: never
+
+Correct: 172/200 (86.00%), strategy: aggregate, sequence_type: all_normal_reflect, aggregation_type: majority_vote, reflection_type: only_if_sat
+
+Correct: 167/200 (83.50%), strategy: aggregate, sequence_type: all_normal_reflect, aggregation_type: favor_unsat, reflection_type: always
+
+Correct: 166/200 (83.00%), strategy: aggregate, sequence_type: all_normal_reflect, aggregation_type: favor_unsat, reflection_type: never
+
+Correct: 167/200 (83.50%), strategy: aggregate, sequence_type: all_normal_reflect, aggregation_type: favor_unsat, reflection_type: only_if_sat
+
+
+Correct: 140/200 (70.00%), strategy: oneshot, model_type: literal, reflect: True
+Correct: 120/200 (60.00%), strategy: oneshot, model_type: literal, reflect: False
+Correct: 126/200 (63.00%), strategy: oneshot, model_type: implicitly, reflect: True
+Correct: 127/200 (63.50%), strategy: oneshot, model_type: implicitly, reflect: False
+Correct: 164/200 (82.00%), strategy: oneshot, model_type: normal, reflect: True
+Correct: 166/200 (83.00%), strategy: oneshot, model_type: normal, reflect_if_sat
+Correct: 151/200 (75.50%), strategy: oneshot, model_type: normal, reflect: False
+
+
+
+ASK for bugs
+Look at content.txt
+
+
+Baseline model without z3
+Powerful reasoning model with less search
+Failure modes with examples
+giving z3 to the LLM
+Testing
+
+---Interact
+Prefix should not contain thought ids
+
+Cache: prefix -> prefix+thought tokens
+Fetch from cache and send to openai
+line 363 openai_api
+
+Response API vs Completion API
+test
+
+
+
+
+
+- 3 new agents: Only ask, formalization agent, z3 agent
+    Correct: 155/200 (77.50%) for output_3mar/only_ask_experiment, strategy: only_ask
+    Correct: 127/200 (63.50%) for output_3mar/formalization_agent_experiment, strategy: formalization_agent
+    Correct: 137/200 (68.50%) for output_3mar/z3_agent_experiment, strategy: z3_agent
+
+--Aggregate
+
+- Fixed consistency checking, parentheses, n-ary And/Or 
+- Failure modes of aggregate:
+    - missed Not(Equals(RealMadrid, Barcelona))
+    - `DuneIsScienceFiction` as a constant instead of `ScienceFiction(Dune)`
+    - Used inconsistent predicates: `ScheduledInCity(Olympics2028, LA)` for the fact but `SummerOlympicsInCity(x)` in the rule. 
+      Since these are different predicate names, the rule "If a city holds a Summer Olympics and is a US city..." never fires.
+    - Used `ContributedTo(Hamming, NumericalMethods)` for the premise and `WorkedIn(p, NumericalMethods)` for the conclusion 
+      Also encoded the conclusion as a constraint, making it trivially provable.
+    - If a book was published by a company, then the author of that book worked with the company that published the book.
+    Used an existential quantifier `ForAll(b, ForAll(c, Implies(PublishedBy(b, c), Exists(a, And(WrittenBy(b, a), WorkedWith(a, c))))))` instead of a: 
+    `ForAll(b, ForAll(c, ForAll(a, Implies(And(PublishedBy(b,c), WrittenBy(b,a)), WorkedWith(a,c)))))`.
+
+
+models/ dir.
+wrapper on models 
+cache query
+reasoning uuid sending 
+aggregation_type
+tests and design
+
+write down:
+understanding of the problem, possible solutions, tradeoffs
+
+delphyne caching in a thread-safe way??
+
+
+---Interact
+Prefix should not contain thought ids
+Cache: prefix -> prefix+thought ids (not tokens, those are proprietary)
+Fetch from cache and send to openai

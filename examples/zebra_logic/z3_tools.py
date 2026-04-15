@@ -167,7 +167,7 @@ def run_fol_in_z3(
             for f in formulae:
                 z3_formula = Z3Interpreter.interpret(f, context | new_context)
                 solver.assert_and_track(z3_formula, pretty_print(f))  # type: ignore
-        if conclusion:
+        if conclusion and step_type != "Constraint":
             # solver.push()
             pushed += 1
             for q in conclusion:

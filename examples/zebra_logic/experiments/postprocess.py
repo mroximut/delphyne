@@ -12,12 +12,16 @@ from delphyne.stdlib.experiments.experiment_launcher import (
     RESULTS_SUMMARY,
 )
 
-ONESHOT = "output_27jan/oneshot_experiment"
+# ONESHOT = "output_27jan/oneshot_experiment"
 # NAIVE = "output_20jan/iterative_naive_experiment"
-BLACKLIST = "output_27jan/iterative_blacklist_experiment"
-ONESHOT_REFLECT = "output_27jan_reflect/oneshot_experiment"
+# BLACKLIST = "output_27jan/iterative_blacklist_experiment"
+# ONESHOT_REFLECT = "output_27jan_reflect/oneshot_experiment"
 BLACKLIST_REFLECT = "output_9feb/iterative_blacklist_experiment"
 AGGREGATE = "output_9feb/aggregate_experiment"
+
+ONLY_ASK = "output_3mar/only_ask_experiment"
+FORMALIZATION_AGENT = "output_3mar/formalization_agent_experiment"
+Z3_AGENT = "output_3mar/z3_agent_experiment"
 
 
 def process_output_aggregate(
@@ -131,8 +135,14 @@ def process_output_for_oneshot(
 
 def process_results(
     experiment_dir: str,
-    strategy_type: Literal["aggregate", "blacklist", "oneshot"],
-    previous_merged_df_path: Path | None = None,
+    strategy_type: Literal[
+        "aggregate",
+        "blacklist",
+        "oneshot",
+        "formalization_agent",
+        "z3_agent",
+        "only_ask",
+    ],
     save_name: str = "merged_results.csv",
     sequence_type: str = "",
     aggregation_type: str = "",
@@ -149,19 +159,7 @@ def process_results(
     benchs = fe.load_folio_benchmark()
     configs = experiment_yaml.get("configs")
 
-    previous_merged_df = (
-        pd.read_csv(previous_merged_df_path)  # type: ignore
-        if previous_merged_df_path
-        else None
-    )
-
     for hsh, cfg in configs.items():
-        if (
-            previous_merged_df is not None
-            and hsh in previous_merged_df["config_hash"].values
-        ):
-            continue
-
         if cfg.get("status") != "done":
             continue
 
@@ -194,7 +192,7 @@ def process_results(
                     model_type=oneshot_model_type,  # type: ignore
                     reflection_type=oneshot_reflect_type,  # type: ignore
                 )
-            elif strategy_type == "blacklist":
+            else:
                 result = result
 
         ground_truth = benchs[bench_id][1]
@@ -213,9 +211,6 @@ def process_results(
     merged_df = results_summary.merge(
         results_df, left_index=True, right_index=True
     )
-    if previous_merged_df is not None:
-        merged_df = pd.concat([previous_merged_df, merged_df])
-    merged_df.to_csv(path_prefix / save_name, index=False)  # type: ignore
 
     if strategy_type == "aggregate" or strategy_type == "oneshot":
         merged_df = merged_df[
@@ -238,6 +233,9 @@ def process_results(
             else ""
         )
     )
+
+    merged_df.to_csv(path_prefix / save_name, index=False)  # type: ignore
+
     return {
         "correct": correct,
         "total": total,
@@ -270,46 +268,7 @@ def merged_df_path(experiment_dir: str) -> Path:
     return path_prefix / "merged_results.csv"
 
 
-if __name__ == "__main__":
-    # process_results(ONESHOT)
-    # process_results(NAIVE)
-    # process_results(BLACKLIST)
-    # process_results(ONESHOT_REFLECT)
-
-    # process_results(BLACKLIST_REFLECT)
-    # process_results(AGGREGATE)
-
-    # for effort_level, reflect_if_sat in [
-    #     (e, f) for e in ["low"] for f in [False]
-    # ]:
-    #     ratio_onehot = get_correctness_ratio(
-    #         merged_df_path(ONESHOT), effort_level, reflect_if_sat
-    #     )
-    #     # ratio_naive = get_correctness_ratio(
-    #     #    merged_df_path(NAIVE), effort_level
-    #     # )
-    #     ratio_blacklist = get_correctness_ratio(
-    #         merged_df_path(BLACKLIST), effort_level, reflect_if_sat
-    #     )
-    #     print(
-    #         f"Effort: {effort_level} | "
-    #         f"Reflect if sat: {reflect_if_sat} | "
-    #         f"One-shot: {ratio_oneshot[0]}/{ratio_oneshot[1]} | "
-    #         # f"Iterative Naive: {ratio_naive[0]}/{ratio_naive[1]} | "
-    #         f"Iterative Blacklist: {ratio_blacklist[0]}/{ratio_blacklist[1]}"
-    #     )
-
-    # ratio_oneshot_reflect = get_correctness_ratio(
-    #     merged_df_path(ONESHOT_REFLECT), "low", True
-    # )
-    # ratio_blacklist_reflect = get_correctness_ratio(
-    #     merged_df_path(BLACKLIST_REFLECT), "low", True
-    # )
-    # ratio_aggregate = get_correctness_ratio(merged_df_path(AGGREGATE), "low")
-    # print(
-    #     f"Iterative Blacklist Reflect: {ratio_blacklist_reflect[0]}/{ratio_blacklist_reflect[1]} | "
-    #     f"Aggregate: {ratio_aggregate[0]}/{ratio_aggregate[1]}"
-    # )
+def main_aggregate():
     oneshot_dicts = [
         process_results(
             BLACKLIST_REFLECT,
@@ -376,3 +335,33 @@ if __name__ == "__main__":
         / "oneshot_summary.csv",
         index=False,
     )
+
+
+def main_agents():
+    agent_dicts = [
+        process_results(
+            ONLY_ASK,
+            "only_ask",
+            save_name="merged_results_only_ask.csv",
+        ),
+        process_results(
+            FORMALIZATION_AGENT,
+            "formalization_agent",
+            save_name="merged_results_formalization_agent.csv",
+        ),
+        process_results(
+            Z3_AGENT,
+            "z3_agent",
+            save_name="merged_results_z3_agent.csv",
+        ),
+    ]
+
+    pd.DataFrame(agent_dicts).to_csv(
+        Path(__file__).resolve().parent / "output_3mar" / "agents_summary.csv",
+        index=False,
+    )
+
+
+if __name__ == "__main__":
+    # main_aggregate()
+    main_agents()

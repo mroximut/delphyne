@@ -1,0 +1,196 @@
+command: run_strategy
+args:
+  strategy: folio_only_ask
+  args:
+    puzzle: | 
+      All people who regularly drink coffee are dependent on caffeine.
+      People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+      No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+      Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+      Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+      Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug.
+  policy: folio_ask_policy
+  policy_args:
+    model_name: gpt-5-nano
+    reasoning_effort: medium
+  budget:
+    num_requests: 5
+outcome:
+  status: completed
+  diagnostics: []
+  result:
+    success: true
+    values: [true]
+    spent_budget:
+      num_requests: 1
+      num_completions: 1
+      input_tokens: 246
+      output_tokens: 3855
+      cached_input_tokens: 0
+      price: 0.0015543
+    success_nodes: [2]
+    raw_trace:
+      nodes:
+        "1": nested($0)
+        "2": child(%1, $1{@1})
+      spaces:
+        "0": main
+        "1": local(%1, cands)
+      answers:
+        "1":
+          space: 1
+          answer:
+            mode: null
+            content: |-
+              ```text
+              True
+              ```
+            tool_calls: []
+            justification: null
+    log:
+      - message: llm_request
+        level: info
+        message_id: 0
+        related: []
+        time: 2026-03-03T18:22:31.333093
+        node: null
+        space: 1
+        metadata:
+          query: CheckDeduction
+          request:
+            chat:
+              - role: system
+                content: |-
+                  Does the conclusion logically follow from the premises?
+
+                  The answer "True" means the conclusion follows from the premises.
+                  The answer "False" means the conclusion does NOT follow from the premises.
+                  The answer "Unknown" means it cannot be determined whether the conclusion
+                  follows from the premises.
+                  Answer in a triple backtick code block with the language set to "text".
+                  The answer should be a single word: "True", "False", or "Unknown".
+              - role: user
+                content: |-
+                  sentences:
+                    - All people who regularly drink coffee are dependent on caffeine.
+                    - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+                    - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+                    - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she
+                      aware that caffeine is a drug.
+                    - Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent
+                      on caffeine.
+                    - 'Conclusion: Rina doesn''t want to be addicted to caffeine or is unaware that caffeine is a drug.'
+            options: {}
+      - message: llm_response
+        level: info
+        message_id: 1
+        related: [0]
+        time: 2026-03-03T18:23:00.618110
+        node: null
+        space: 1
+        metadata:
+          response:
+            outputs:
+              - content: |-
+                  ```text
+                  True
+                  ```
+                tool_calls: []
+            budget:
+              values:
+                num_requests: 1
+                num_completions: 1
+                input_tokens: 246
+                output_tokens: 3855
+                cached_input_tokens: 0
+                price: 0.0015543
+            log_items: []
+            model_name: gpt-5-nano-2025-08-07
+            usage_info:
+              completion_tokens: 3855
+              prompt_tokens: 246
+              total_tokens: 4101
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 3840
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+          usage:
+            model: gpt-5-nano-2025-08-07
+            usage:
+              completion_tokens: 3855
+              prompt_tokens: 246
+              total_tokens: 4101
+              completion_tokens_details:
+                accepted_prediction_tokens: 0
+                audio_tokens: 0
+                reasoning_tokens: 3840
+                rejected_prediction_tokens: 0
+              prompt_tokens_details:
+                audio_tokens: 0
+                cached_tokens: 0
+    browsable_trace:
+      nodes:
+        "1":
+          kind: Branch
+          success_value: null
+          summary_message: null
+          leaf_node: false
+          label: CheckDeduction
+          tags: [CheckDeduction]
+          properties:
+            - - with_ids: cands
+                with_hints: null
+              - 1
+              - kind: query
+                name: CheckDeduction
+                args:
+                  sentences:
+                    - All people who regularly drink coffee are dependent on caffeine.
+                    - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+                    - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+                    - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+                    - Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+                    - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
+                tags: [CheckDeduction]
+                answers:
+                  - id: 1
+                    hint: null
+                    value:
+                      short: "True"
+                      long: "'True'"
+                      json_provided: true
+                      json: "True"
+          actions:
+            - ref:
+                with_ids: $1{@1}
+                with_hints: null
+              hints: null
+              related_success_nodes: []
+              related_answers: [1]
+              value:
+                short: "True"
+                long: "'True'"
+                json_provided: true
+                json: "True"
+              destination: 2
+          origin: root
+        "2":
+          kind: Success
+          success_value:
+            short: "True"
+            long: "True"
+            json_provided: true
+            json: true
+          summary_message: null
+          leaf_node: true
+          label: null
+          tags: []
+          properties: []
+          actions: []
+          origin: [child, 1, 0]
+      spaces:
+        "1": [1, 0]

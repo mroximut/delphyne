@@ -1,0 +1,9 @@
+Sentences:
+{% for sentence in query.sentences %}
+{{ loop.index }}. {{ sentence }}
+{% endfor %}
+
+The last sentence (sentence {{ query.sentences | length }}) is the conclusion.
+All preceding sentences are premises.
+
+Does the conclusion logically follow from the premises?

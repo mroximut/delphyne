@@ -78,27 +78,6 @@ class StyleFlag(dp.FlagQuery[StyleFlagTag]):
     """
 
 
-# def _pop_section(formalization_yaml: str, section_name: str) -> str:
-#     data = yaml.safe_load(formalization_yaml)
-#     section = data.get(section_name, [])
-#     if section:
-#         data.pop(section_name, None)
-#     return yaml.safe_dump(data)
-
-
-# def _adjust_formalizations(
-#     formalizations: list[str],
-#     refined_formalization: str,
-# ) -> list[str]:
-#     if refined_formalization.strip() == "nop":
-#         return formalizations
-#     refined_data = yaml.safe_load(refined_formalization)
-#     if "Conclusion" in refined_data:
-#         for i in range(len(formalizations) - 1):
-#             formalizations[i] = _pop_section(formalizations[i], "Conclusion")
-#     return formalizations
-
-
 @strategy
 def reflect(
     sat_or_unsat: Literal["sat", "unsat"],
@@ -118,11 +97,6 @@ def reflect(
             refined_formalization,
             step_type="All",
             add_permanently=False,
-            # additional_formalizations=_adjust_formalizations(
-            #     formalizations, refined_formalization
-            # )
-            # if sat_or_unsat == "sat"
-            # else [],
         ).using(lambda p: p.check, FormalizeIP),
     )
     return response
@@ -217,10 +191,6 @@ def folio_oneshot(
         first_solution,
         solution,
     )
-    # if formalization_response.status == "unknown":
-    #     return None
-    # else:
-    #     return formalization_response.status == "unsat"
 
 
 @strategy
@@ -287,6 +257,7 @@ def check_constraints(
     step_type: StepType,
     add_permanently: bool,
     additional_formalizations: list[str] = [],
+    check_consistency_of_premises: bool = True,
     blacklist: Blacklist = [],
     timeout_in_seconds: float | None = None,
     session_id: SessionId | None = None,
@@ -345,6 +316,24 @@ def check_constraints(
                     )
 
     formalizations = additional_formalizations + [formalization_yaml]
+
+    if check_consistency_of_premises and step_type == "All":
+        consistency_response = yield from dp.compute(run_fol_in_z3)(
+            additional_formalizations,
+            step_type="Constraint",
+            permanently=False,
+            timeout_in_seconds=timeout_in_seconds,
+            session_id=session_id,
+        )
+        if consistency_response.status == "unsat":
+            return dp.Error(
+                label="fol_inconsistent_premises",
+                meta={
+                    "error": "The provided premises are inconsistent.",
+                    "formalization_yaml": formalization_yaml,
+                },
+            )
+
     response = yield from dp.compute(run_fol_in_z3)(
         formalizations,
         step_type,
@@ -402,15 +391,6 @@ def formalize_single_policy(
         formalize=dp.take(1) @ dp.few_shot(model, temperature=temperature),
         check=dp.exec @ elim_z3_compute(timeout_in_seconds) & None,
     )
-    # ip = FormalizeIP(
-    #     formalize=dp.take(1)
-    #     @ dp.answer_with(
-    #         [
-    #             "```yaml\n```",
-    #             "```yaml\nPredicates:\n- Human(1)\nConstants:\n- Socrates\nConstraints:\n- Human(Socrates)\n```",
-    #         ],
-    #     )
-    # )
     sp = dp.dfs(max_depth=max_rounds)
     return sp & ip
 

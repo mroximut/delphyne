@@ -86,7 +86,10 @@ class PredicateDef:
     arity: int
     arg_sorts: List[str] | None = None
 
-    __eq__ = lambda self: self.name  # type: ignore
+    __eq__ = (
+        lambda self, other: isinstance(other, PredicateDef)
+        and self.name == other.name  # type: ignore
+    )
     __hash__ = lambda self: hash(self.name)  # type: ignore
 
 
@@ -149,9 +152,20 @@ class FOLParser:
         - Equality:               Equals(t1, t2)
         - Quantifiers:            ForAll(x, body), Exists(x, body)
 
+        And/Or accept 2+ arguments and are auto-nested into binary trees.
+        Trailing unmatched ')' characters are auto-stripped before parsing.
+
         Variables vs constants are distinguished using `bound_vars` and the
         provided `constants` set.
         """
+
+        # Auto-repair: strip trailing unmatched closing parentheses
+        expr = expr.strip()
+        while expr.count(")") > expr.count("("):
+            expr = expr.rstrip(")")
+            # Re-add as many ')' as needed to balance
+            deficit = expr.count("(") - expr.count(")")
+            expr = expr + ")" * deficit
 
         node = ast.parse(expr, mode="eval").body
         return FOLParser._from_ast(
@@ -196,8 +210,22 @@ class FOLParser:
                 )
                 return Not(sub)
 
-            # Binary connectives and equality: And, Or, Xor, Implies, Equals
-            if fun in {"And", "Or", "Xor", "Implies", "Equals", "Iff"}:
+            # N-ary And/Or: accept 2+ arguments, fold into binary tree
+            if fun in {"And", "Or"}:
+                if len(node.args) < 2:
+                    raise ValueError(f"{fun} expects at least 2 arguments")
+                sub_formulas = [
+                    FOLParser._from_ast(a, predicates, constants, bound_vars)
+                    for a in node.args
+                ]
+                cls = And if fun == "And" else Or
+                result = sub_formulas[-1]
+                for sf in reversed(sub_formulas[:-1]):
+                    result = cls(sf, result)
+                return result
+
+            # Binary connectives and equality: Xor, Implies, Equals, Iff
+            if fun in {"Xor", "Implies", "Equals", "Iff"}:
                 if len(node.args) != 2:
                     raise ValueError(f"{fun} expects 2 arguments")
                 left_node, right_node = node.args
@@ -216,10 +244,6 @@ class FOLParser:
                 right_formula = FOLParser._from_ast(
                     right_node, predicates, constants, bound_vars
                 )
-                if fun == "And":
-                    return And(left_formula, right_formula)
-                if fun == "Or":
-                    return Or(left_formula, right_formula)
                 if fun == "Xor":
                     return Xor(left_formula, right_formula)
                 if fun == "Implies":

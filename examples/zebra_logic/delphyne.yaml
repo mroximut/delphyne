@@ -5,6 +5,7 @@ modules:
   - "folio_baseline"
   - "folio_iterative_blacklist"
   - "folio_aggregate"
+  - "folio_standard"
 demo_files:
   - "demos/zebra_baseline.demo.yaml"
   - "demos/folio_baseline.demo.yaml"

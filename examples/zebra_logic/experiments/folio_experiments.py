@@ -193,3 +193,87 @@ class AggregateConfig:
             },
             budget=budget,
         )
+
+
+@dataclass
+class OnlyAskConfig:
+    bench_id: int
+    model_name: str
+    reasoning_effort: dp.ReasoningEffort
+    temperature: float | None = None
+    max_dollar_budget: float | None = 0.2
+    seed: int = 0
+    num_requests: int = 10
+
+    def instantiate(self, context: object):
+        budget: dict[str, float] = {}
+        if self.max_dollar_budget is not None:
+            budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
+        return dp.RunStrategyArgs(
+            strategy="folio_only_ask",
+            args={"puzzle": BENCHS[self.bench_id][0]},
+            policy="folio_ask_policy",
+            policy_args={
+                "model_name": self.model_name,
+                "reasoning_effort": self.reasoning_effort,
+                "num_requests": self.num_requests,
+                # "temperature": self.temperature,
+            },
+            budget=budget,
+        )
+
+
+@dataclass
+class FormalizationAgentConfig:
+    bench_id: int
+    model_name: str
+    reasoning_effort: dp.ReasoningEffort
+    temperature: float | None = None
+    max_dollar_budget: float | None = 0.2
+    seed: int = 0
+    num_requests: int = 10
+
+    def instantiate(self, context: object):
+        budget: dict[str, float] = {}
+        if self.max_dollar_budget is not None:
+            budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
+        return dp.RunStrategyArgs(
+            strategy="folio_formalization_agent",
+            args={"puzzle": BENCHS[self.bench_id][0]},
+            policy="folio_ask_policy",
+            policy_args={
+                "model_name": self.model_name,
+                "reasoning_effort": self.reasoning_effort,
+                "num_requests": self.num_requests,
+                # "temperature": self.temperature,
+            },
+            budget=budget,
+        )
+
+
+@dataclass
+class Z3AgentConfig:
+    bench_id: int
+    model_name: str
+    reasoning_effort: dp.ReasoningEffort
+    temperature: float | None = None
+    max_dollar_budget: float | None = 0.2
+    seed: int = 0
+    num_requests: int = 10
+
+    def instantiate(self, context: object):
+        budget: dict[str, float] = {}
+        if self.max_dollar_budget is not None:
+            budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
+        return dp.RunStrategyArgs(
+            strategy="folio_z3_agent",
+            args={"puzzle": BENCHS[self.bench_id][0]},
+            policy="folio_z3_agent_policy",
+            policy_args={
+                "model_name": self.model_name,
+                "reasoning_effort": self.reasoning_effort,
+                "num_requests": self.num_requests,
+                # "temperature": self.temperature,
+            },
+            budget=budget,
+        )
