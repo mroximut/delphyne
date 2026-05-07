@@ -1,36 +1,45 @@
 import ast
 from dataclasses import dataclass
-from typing import Any, Dict, List, Set, Tuple, assert_never
+from typing import Any
 
-import yaml
 import z3  # type: ignore
+
+type Sort = str
 
 
 @dataclass(frozen=True)
-class BoundedVar:
+class Var:
     name: str
-    sort: str | None = None
+    sort: Sort | None = None
 
 
 @dataclass(frozen=True)
 class Const:
     name: str
-    sort: str | None = None
+    sort: Sort | None = None
+
+    def __eq__(self, other: object):
+        if not isinstance(other, Const):
+            return NotImplemented
+        return self.name == other.name
+
+    def __hash__(self):
+        return hash(self.name)
 
 
-type Term = BoundedVar | Const
+type Atomic = Var | Const
 
 
 @dataclass(frozen=True)
 class Predicate:
     name: str
-    args: List[Term]
+    args: list[Atomic]
 
 
 @dataclass(frozen=True)
 class Equals:
-    left: Term
-    right: Term
+    left: Atomic
+    right: Atomic
 
 
 @dataclass(frozen=True)
@@ -70,13 +79,13 @@ class Implies:
 
 @dataclass(frozen=True)
 class ForAll:
-    variable: BoundedVar
+    variable: Var
     body: "Formula"
 
 
 @dataclass(frozen=True)
 class Exists:
-    variable: BoundedVar
+    variable: Var
     body: "Formula"
 
 
@@ -84,18 +93,44 @@ class Exists:
 class PredicateDef:
     name: str
     arity: int
-    arg_sorts: List[str] | None = None
+    arg_sorts: list[Sort] | None = None
 
-    __eq__ = (
-        lambda self, other: isinstance(other, PredicateDef)
-        and self.name == other.name  # type: ignore
-    )
-    __hash__ = lambda self: hash(self.name)  # type: ignore
+    def __eq__(self, other: object):
+        if not isinstance(other, PredicateDef):
+            return NotImplemented
+        return self.name == other.name
+
+    def __hash__(self):
+        return hash(self.name)
 
 
 type Formula = (
     Predicate | Not | And | Or | Xor | Equals | Implies | ForAll | Exists | Iff
 )
+
+
+@dataclass
+class StrFormalization:
+    predicates: list[str] | None = None
+    constants: list[str] | None = None
+    constraints: list[str] | None = None
+    conclusion: list[str] | None = None
+
+
+@dataclass
+class Formalization:
+    predicates: set[PredicateDef]
+    constants: set[Const]
+    formulae: list[Formula]
+    conclusion: list[Formula]
+
+    def __add__(self, other: "Formalization"):
+        return Formalization(
+            predicates=self.predicates | other.predicates,
+            constants=self.constants | other.constants,
+            formulae=self.formulae + other.formulae,
+            conclusion=self.conclusion + other.conclusion,
+        )
 
 
 def pretty_print(formula: Formula) -> str:
@@ -123,13 +158,11 @@ def pretty_print(formula: Formula) -> str:
             return f"Exists({variable.name}, {pretty_print(body)})"
         case Iff(left=left, right=right):
             return f"Iff({pretty_print(left)}, {pretty_print(right)})"
-        case _:
-            assert_never(formula)
 
 
-def pretty_print_arg(arg: Term) -> str:
+def pretty_print_arg(arg: Atomic) -> str:
     match arg:
-        case BoundedVar(name=name):
+        case Var(name=name):
             return name
         case Const(name=name):
             return name
@@ -138,9 +171,9 @@ def pretty_print_arg(arg: Term) -> str:
 class FOLParser:
     @staticmethod
     def parse(
-        expr: str,
-        predicates: Set[PredicateDef],
-        constants: Set[str],
+        formula: str,
+        predicates: set[PredicateDef],
+        constants: set[Const],
     ) -> Formula:
         """Parse an expression using Python's ast into Formula.
 
@@ -155,46 +188,79 @@ class FOLParser:
         And/Or accept 2+ arguments and are auto-nested into binary trees.
         Trailing unmatched ')' characters are auto-stripped before parsing.
 
-        Variables vs constants are distinguished using `bound_vars` and the
+        Variables vs constants are distinguished using the
         provided `constants` set.
         """
 
-        # Auto-repair: strip trailing unmatched closing parentheses
-        expr = expr.strip()
-        while expr.count(")") > expr.count("("):
-            expr = expr.rstrip(")")
-            # Re-add as many ')' as needed to balance
-            deficit = expr.count("(") - expr.count(")")
-            expr = expr + ")" * deficit
+        # Auto-repair: balance unmatched parentheses
+        formula = formula.strip()
+        # If there are more closing parens than opening, remove trailing
+        # ')' once and then re-add exactly the deficit required to balance.
+        open_count = formula.count("(")
+        close_count = formula.count(")")
 
-        node = ast.parse(expr, mode="eval").body
+        if close_count > open_count:
+            formula = formula.rstrip(")")
+            deficit = formula.count("(") - formula.count(")")
+            if deficit > 0:
+                formula = formula + ")" * deficit
+        elif open_count > close_count:
+            formula = formula + ")" * (open_count - close_count)
+
+        node = ast.parse(formula, mode="eval").body
         return FOLParser._from_ast(
-            node, predicates, constants, bound_vars=set()
+            node, predicates, constants, bound_vars=set(), source=formula
         )
 
     @staticmethod
     def _from_ast(
         node: ast.AST,
-        predicates: Set[PredicateDef],
-        constants: Set[str],
-        bound_vars: Set[str],
+        predicates: set[PredicateDef],
+        constants: set[Const],
+        bound_vars: set[Var],
+        source: str | None = None,
     ) -> Formula:
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            fun = node.func.id
+        # Provide a short source snippet helper for better error messages
+        def _seg(n: ast.AST) -> str:
+            try:
+                return ast.get_source_segment(source or "", n) or ast.dump(n)
+            except Exception:
+                return ast.dump(n)
 
+        if not isinstance(node, ast.Call):
+            raise ValueError(
+                f"Unsupported or disallowed node type {type(node).__name__}"
+                + f" in expression: {_seg(node)}"
+            )
+        if not isinstance(node.func, ast.Name):
+            raise ValueError(
+                f"Unsupported function call form: {_seg(node.func)} in"
+                + f" {source or '<expr>'}"
+            )
+        if node.keywords:
+            raise ValueError(
+                f"Keyword arguments are not supported: {_seg(node)}"
+            )
+        fun = node.func.id
+
+        match fun:
             # Quantifiers: ForAll(x, body), Exists(x, body)
-            if fun in {"ForAll", "Exists"}:
+            case "ForAll" | "Exists":
                 if len(node.args) != 2:
-                    raise ValueError(f"{fun} expects 2 arguments (var, body)")
+                    raise ValueError(
+                        f"{fun} expects 2 arguments (var, body): {_seg(node)}"
+                    )
                 var_node, body_node = node.args
                 if not isinstance(var_node, ast.Name):
-                    raise ValueError(f"{fun} variable must be a simple name")
+                    raise ValueError(
+                        f"{fun} variable must be a simple name: {_seg(var_node)}"
+                    )
                 var_name = var_node.id
-                new_bound = set(bound_vars) | {var_name}
+                new_bound = set(bound_vars) | {Var(name=var_name)}
                 body_formula = FOLParser._from_ast(
-                    body_node, predicates, constants, new_bound
+                    body_node, predicates, constants, new_bound, source=source
                 )
-                var = BoundedVar(var_name)
+                var = Var(var_name)
                 return (
                     ForAll(var, body_formula)
                     if fun == "ForAll"
@@ -202,191 +268,199 @@ class FOLParser:
                 )
 
             # Negation: Not(phi)
-            if fun == "Not":
+            case "Not":
                 if len(node.args) != 1:
-                    raise ValueError("Not expects 1 argument")
+                    raise ValueError(f"Not expects 1 argument: {_seg(node)}")
                 sub = FOLParser._from_ast(
-                    node.args[0], predicates, constants, bound_vars
+                    node.args[0],
+                    predicates,
+                    constants,
+                    bound_vars,
+                    source=source,
                 )
                 return Not(sub)
 
             # N-ary And/Or: accept 2+ arguments, fold into binary tree
-            if fun in {"And", "Or"}:
+            case "And" | "Or":
                 if len(node.args) < 2:
-                    raise ValueError(f"{fun} expects at least 2 arguments")
+                    raise ValueError(
+                        f"{fun} expects at least 2 arguments: {_seg(node)}"
+                    )
                 sub_formulas = [
-                    FOLParser._from_ast(a, predicates, constants, bound_vars)
+                    FOLParser._from_ast(
+                        a, predicates, constants, bound_vars, source=source
+                    )
                     for a in node.args
                 ]
-                cls = And if fun == "And" else Or
+                op = And if fun == "And" else Or
                 result = sub_formulas[-1]
                 for sf in reversed(sub_formulas[:-1]):
-                    result = cls(sf, result)
+                    result = op(sf, result)
                 return result
 
             # Binary connectives and equality: Xor, Implies, Equals, Iff
-            if fun in {"Xor", "Implies", "Equals", "Iff"}:
+            case "Xor" | "Implies" | "Equals" | "Iff":
                 if len(node.args) != 2:
-                    raise ValueError(f"{fun} expects 2 arguments")
+                    raise ValueError(
+                        f"{fun} expects exactly 2 arguments: {_seg(node)}"
+                    )
                 left_node, right_node = node.args
                 if fun == "Equals":
                     left_term = FOLParser._term_from_ast(
-                        left_node, constants, bound_vars
+                        left_node, constants, bound_vars, source=source
                     )
                     right_term = FOLParser._term_from_ast(
-                        right_node, constants, bound_vars
+                        right_node, constants, bound_vars, source=source
                     )
                     return Equals(left_term, right_term)
-
-                left_formula = FOLParser._from_ast(
-                    left_node, predicates, constants, bound_vars
-                )
-                right_formula = FOLParser._from_ast(
-                    right_node, predicates, constants, bound_vars
-                )
-                if fun == "Xor":
-                    return Xor(left_formula, right_formula)
-                if fun == "Implies":
-                    return Implies(left_formula, right_formula)
-                if fun == "Iff":
-                    return Iff(left_formula, right_formula)
+                else:
+                    left_formula = FOLParser._from_ast(
+                        left_node,
+                        predicates,
+                        constants,
+                        bound_vars,
+                        source=source,
+                    )
+                    right_formula = FOLParser._from_ast(
+                        right_node,
+                        predicates,
+                        constants,
+                        bound_vars,
+                        source=source,
+                    )
+                    if fun == "Xor":
+                        return Xor(left_formula, right_formula)
+                    elif fun == "Implies":
+                        return Implies(left_formula, right_formula)
+                    else:  # fun == "Iff"
+                        return Iff(left_formula, right_formula)
 
             # Predicate application: P(t1, ..., tn)
-            predicate_arity: Dict[str, int] = {
-                p.name: p.arity for p in predicates
-            }
-            if fun in predicate_arity:
-                expected_arity = predicate_arity[fun]
+            case _ if fun in (preds := {p.name: p.arity for p in predicates}):
+                expected_arity = preds[fun]
                 if len(node.args) != expected_arity:
                     raise ValueError(
-                        f"Predicate '{fun}' expected {expected_arity} "
-                        f"arguments, got {len(node.args)}"
+                        f"Predicate '{fun}' expected {expected_arity} arguments,"
+                        + f" got {len(node.args)}: {_seg(node)}"
                     )
-                args: List[Term] = [
-                    FOLParser._term_from_ast(a, constants, bound_vars)
+                args: list[Atomic] = [
+                    FOLParser._term_from_ast(
+                        a, constants, bound_vars, source=source
+                    )
                     for a in node.args
                 ]
                 return Predicate(fun, args)
 
-            raise ValueError(f"Unknown function symbol: {fun}")
-
-        raise ValueError(f"Unsupported expression: {ast.dump(node)}")
+            case _:
+                raise ValueError(f"Unknown function symbol: {fun}")
 
     @staticmethod
     def _term_from_ast(
-        node: ast.AST, constants: Set[str], bound_vars: Set[str]
-    ) -> Term:
+        node: ast.AST,
+        constants: set[Const],
+        bound_vars: set[Var],
+        source: str | None = None,
+    ) -> Atomic:
+        def _seg(n: ast.AST) -> str:
+            try:
+                return ast.get_source_segment(source or "", n) or ast.dump(n)
+            except Exception:
+                return ast.dump(n)
+
+        # Only simple names are allowed in term position.
         if isinstance(node, ast.Name):
-            if node.id in bound_vars:
-                return BoundedVar(node.id)
-            if node.id in constants:
+            if node.id in [v.name for v in bound_vars]:
+                return Var(node.id)
+            if node.id in [c.name for c in constants]:
                 return Const(node.id)
-            raise ValueError(f"Unknown symbol in term position: {node.id}")
-        raise ValueError(f"Unsupported term node: {ast.dump(node)}")
+            raise ValueError(
+                f"Unknown symbol in term position: {node.id} (at {_seg(node)})"
+            )
+        # Reject other AST nodes in term position with context
+        raise ValueError(f"Unsupported term node: {_seg(node)}")
 
 
-class YamlFormalizationParser:
+class FormalizationParser:
     @staticmethod
     def parse_multiple(
-        formalizations: list[str],
-        previous_predicates: Set[PredicateDef] = set(),
-        previous_constants: Set[str] = set(),
-    ) -> Tuple[Set[PredicateDef], Set[str], List[Formula], List[Formula]]:
-        predicates: Set[PredicateDef] = set()
-        constants: Set[str] = set()
-        formulae: List[Formula] = []
-        conclusion: List[Formula] = []
-        for formalization_yaml in formalizations:
-            (
-                new_predicates,
-                new_constants,
-                new_formulae,
-                new_conclusion,
-            ) = YamlFormalizationParser._parse(
-                formalization_yaml,
-                previous_predicates | predicates,
-                previous_constants | constants,
+        formalizations: list[StrFormalization],
+        previous_predicates: set[PredicateDef] = set(),
+        previous_constants: set[Const] = set(),
+    ) -> Formalization:
+        ret = Formalization(previous_predicates, previous_constants, [], [])
+        for formalization_str in formalizations:
+            new_formalization = FormalizationParser._parse(
+                formalization_str,
+                ret.predicates,
+                ret.constants,
             )
-            predicates |= new_predicates
-            constants |= new_constants
-            formulae += new_formulae
-            conclusion += new_conclusion
-        return predicates, constants, formulae, conclusion
+            ret = ret + new_formalization
+        return ret
 
     @staticmethod
     def _parse(
-        formalization_yaml: str,
-        previous_predicates: Set[PredicateDef] = set(),
-        previous_constants: Set[str] = set(),
-    ) -> Tuple[Set[PredicateDef], Set[str], List[Formula], List[Formula]]:
-        data = yaml.safe_load(formalization_yaml)
+        formalization_str: StrFormalization,
+        previous_predicates: set[PredicateDef] = set(),
+        previous_constants: set[Const] = set(),
+    ) -> Formalization:
         # Parse predicate declarations of the form "Name(Arity)"
-        new_predicates: Set[PredicateDef] = set()
-        new_constants: Set[str] = set()
+        new_predicates: set[PredicateDef] = set()
+        new_constants: set[Const] = set()
 
-        if "Predicates" in data:
-            for p in data.get("Predicates", []):
-                if p is None:
-                    continue
-                if not isinstance(p, str):
-                    raise TypeError(
-                        f"Predicate must be a string, got {type(p)}: {p!r}"
-                    )
-                name, arity = p.split("(")
-                for pred in previous_predicates:
-                    if pred.name == name:
-                        if pred.arity != int(arity[:-1]):
-                            raise ValueError(
-                                f"Predicate '{name}' already declared with "
-                                f"arity {pred.arity}, got conflicting arity "
-                                f"{arity[:-1]}"
-                            )
+        if formalization_str.predicates is not None:
+            for p in formalization_str.predicates:
+                p_name, p_arity_raw = p.split("(")
+                p_arity = int(p_arity_raw.rstrip(")"))  # remove trailing ')'
+                for prev in previous_predicates:
+                    if prev.name == p_name and prev.arity != p_arity:
+                        raise ValueError(
+                            f"Predicate '{p_name}' already declared with "
+                            f"arity {prev.arity}, got conflicting arity "
+                            f"{p_arity} in declaration '{p}'"
+                        )
+                    elif prev.name == p_name:
                         break
                 else:
                     new_predicates.add(
-                        PredicateDef(name=name, arity=int(arity[:-1]))
-                    )  # remove trailing ')'
-
-        if "Constants" in data:
-            for c in data.get("Constants", []):
-                if c is None:
-                    continue
-                if not isinstance(c, str):
-                    raise TypeError(
-                        f"Constant must be a string, got {type(c)}: {c!r}"
+                        PredicateDef(name=p_name, arity=p_arity)
                     )
-                if c not in previous_constants:
-                    new_constants.add(c)
 
-        formulae: List[Formula] = []
-        conclusion: List[Formula] = []
+        if formalization_str.constants is not None:
+            for c in formalization_str.constants:
+                if c not in [const.name for const in previous_constants]:
+                    new_constants.add(Const(name=c))
+
         predicates = previous_predicates | new_predicates
         constants = previous_constants | new_constants
+        formulae: list[Formula] = []
+        conclusion: list[Formula] = []
 
-        if "Constraints" in data:
+        if (cons := formalization_str.constraints) is not None:
             formulae = [
-                FOLParser.parse(r, predicates, constants)
-                for r in data.get("Constraints", [])
-                if r is not None
+                FOLParser.parse(fml, predicates, constants) for fml in cons
             ]
 
-        if "Conclusion" in data:
+        if (conc := formalization_str.conclusion) is not None:
             conclusion = [
-                FOLParser.parse(r, predicates, constants)
-                for r in data.get("Conclusion", [])
-                if r is not None
+                FOLParser.parse(fml, predicates, constants) for fml in conc
             ]
 
-        return new_predicates, new_constants, formulae, conclusion
+        return Formalization(
+            predicates=predicates,
+            constants=constants,
+            formulae=formulae,
+            conclusion=conclusion,
+        )
 
 
 class Z3Interpreter:
     @staticmethod
     def register_predicate(
-        predicate: PredicateDef, context: Dict[str, Any]
-    ) -> z3.FuncDeclRef:
+        predicate: PredicateDef, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Register a predicate in Z3 as an uninterpreted function."""
-
+        if predicate.name in context:
+            return context  # already registered
         obj_sort: z3.SortRef = context["__sort__"]
         arg_sorts = [obj_sort] * predicate.arity
         func = z3.Function(  # type: ignore
@@ -395,38 +469,37 @@ class Z3Interpreter:
             z3.BoolSort(),  # type: ignore
         )
         context[predicate.name] = func
-        return func
+        return context
 
     @staticmethod
     def register_constant(
-        constant: str, context: Dict[str, Any]
-    ) -> z3.ExprRef:
+        constant: Const, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Register a constant in Z3 as a z3 constant."""
-
+        if constant.name in context:
+            return context  # already registered
         obj_sort: z3.SortRef = context["__sort__"]
-        const = z3.Const(constant, obj_sort)  # type: ignore
-        context[constant] = const
-        return const
+        const = z3.Const(constant.name, obj_sort)  # type: ignore
+        context[constant.name] = const
+        return context
 
     @staticmethod
-    def interpret(formula: Formula, context: Dict[str, Any]) -> z3.BoolRef:
+    def interpret(formula: Formula, context: dict[str, Any]) -> z3.BoolRef:
         """Interpret a `Formula` into a z3 BoolRef.
 
         The `context` maps predicate names to uninterpreted z3 functions.
         All terms are of a single z3 sort, declared in `context["__sort__"]`.
         """
 
-        def term_to_z3(t: Term) -> z3.ExprRef:
+        def term_to_z3(t: Atomic) -> z3.ExprRef:
             match t:
-                case BoundedVar(name=name):
+                case Var(name=name):
                     return z3.Const(name, context["__sort__"])  # type: ignore
                 case Const(name=name):
                     return context[name]
-                case _:
-                    assert_never(t)
 
-        def go(f: Formula) -> z3.BoolRef:
-            match f:
+        def go(fml: Formula) -> z3.BoolRef:
+            match fml:
                 case Predicate(name=name, args=args):
                     if name not in context:
                         raise KeyError(
@@ -465,57 +538,4 @@ class Z3Interpreter:
                 case Iff(left=left, right=right):
                     return go(left) == go(right)  # type: ignore
 
-                case _:
-                    assert_never(f)
-
         return go(formula)
-
-
-def _example_usage() -> None:
-    # --- [Usage] ---
-    input = """
-    Predicates:
-    - Human(1)
-    - Mortal(1)
-    Constants:
-    - Socrates
-    Constraints:
-    - Human(Socrates)
-    - ForAll(x, Implies(Human(x), Mortal(x)))
-    Conclusion:
-    - Mortal(Socrates)    
-    """
-    predicates: Set[PredicateDef] = set()
-    constants: Set[str] = set()
-    predicates, constants, formulae, conclusion = (
-        YamlFormalizationParser.parse_multiple([input], predicates, constants)
-    )
-    print("Parsed Predicates:", predicates)
-    print("Parsed Constants:", constants)
-    print("Parsed Formulae:", formulae)
-    print("Parsed Conclusion:", conclusion)
-    context: Dict[str, Any] = {"__sort__": z3.DeclareSort("Object")}  # type: ignore
-    for p in predicates:
-        Z3Interpreter.register_predicate(p, context)
-    for c in constants:
-        Z3Interpreter.register_constant(c, context)
-
-    solver = z3.Solver()
-    for f in formulae:
-        z3_formula = Z3Interpreter.interpret(f, context)
-        solver.add(z3_formula)  # type: ignore
-
-    for q in conclusion:
-        z3_conclusion = Z3Interpreter.interpret(Not(q), context)
-        solver.add(z3_conclusion)  # type: ignore
-
-    if solver.check() == z3.sat:  # type: ignore
-        model = solver.model()
-        print("Satisfiable. Model:")
-        print(model)
-    else:
-        print("Unsatisfiable.")
-
-
-if __name__ == "__main__":
-    _example_usage()

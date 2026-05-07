@@ -5,6 +5,7 @@ from typing import Literal
 import pandas as pd
 
 import delphyne as dp
+from delphyne.stdlib.standard_models import APIType
 
 SOLUTIONS_CSV: Path = (
     Path(__file__).resolve().parent.parent
@@ -51,40 +52,136 @@ def sample(keys: list[int], len_samples: int, seed: int = 42) -> list[int]:
     return random.sample(keys, len_samples)
 
 
-SAMPLE_IDS_9feb_200 = set(
-    [
-        id
-        for id in sample(list(BENCHS.keys()), len(BENCHS), seed=424242)
-        if BENCHS[id][1] is not None
-    ][:200]
-)
+# SAMPLE_IDS_9feb_200 = [
+#     id
+#     for id in sample(list(BENCHS.keys()), len(BENCHS), seed=424242)
+#     if BENCHS[id][1] is not None
+# ][:200]
+
+SAMPLE_IDS_5_may = [
+    id
+    for id in sample(list(BENCHS.keys()), len(BENCHS), seed=424242)
+    if BENCHS[id][1] is not None
+][200:400]
 
 
 @dataclass
-class OneshotConfig:
+class AggregateConfig:
     bench_id: int
     model_name: str
-    max_rounds: int
     reasoning_effort: dp.ReasoningEffort
-    reflect_if_sat: bool = False
+    max_rounds_each: int = 5
+    sequence_type: Literal["mixed", "all_normal", "all_normal_reflect"] = (
+        "mixed"
+    )
+    aggregation_type: Literal["majority_vote", "favor_unsat"] = "majority_vote"
     temperature: float | None = None
     max_dollar_budget: float | None = 0.2
     seed: int = 0
+    api_type: APIType = "responses"
 
     def instantiate(self, context: object):
         budget: dict[str, float] = {}
         if self.max_dollar_budget is not None:
             budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
         return dp.RunStrategyArgs(
-            strategy="folio_oneshot",
+            strategy="folio_aggregate",
             args={"puzzle": BENCHS[self.bench_id][0]},
-            policy="folio_oneshot_policy",
+            policy="folio_aggregate_policy",
             policy_args={
                 "model_name": self.model_name,
                 "reasoning_effort": self.reasoning_effort,
-                "temperature": self.temperature,
-                "max_rounds": self.max_rounds,
-                "reflect_if_sat": self.reflect_if_sat,
+                "max_rounds_each": self.max_rounds_each,
+                "sequence_type": self.sequence_type,
+                "aggregation_type": self.aggregation_type,
+                "api_type": self.api_type,
+            },
+            budget=budget,
+        )
+
+
+@dataclass
+class OnlyAskConfig:
+    bench_id: int
+    model_name: str
+    reasoning_effort: dp.ReasoningEffort
+    temperature: float | None = None
+    max_dollar_budget: float | None = 0.2
+    seed: int = 0
+    num_requests: int = 10
+    api_type: APIType = "responses"
+
+    def instantiate(self, context: object):
+        budget: dict[str, float] = {}
+        if self.max_dollar_budget is not None:
+            budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
+        return dp.RunStrategyArgs(
+            strategy="folio_only_ask",
+            args={"puzzle": BENCHS[self.bench_id][0]},
+            policy="folio_ask_policy",
+            policy_args={
+                "model_name": self.model_name,
+                "reasoning_effort": self.reasoning_effort,
+                "num_requests": self.num_requests,
+                "api_type": self.api_type,
+            },
+            budget=budget,
+        )
+
+
+@dataclass
+class FormalizationAgentConfig:
+    bench_id: int
+    model_name: str
+    reasoning_effort: dp.ReasoningEffort
+    temperature: float | None = None
+    max_dollar_budget: float | None = 0.2
+    seed: int = 0
+    num_requests: int = 10
+    api_type: APIType = "responses"
+
+    def instantiate(self, context: object):
+        budget: dict[str, float] = {}
+        if self.max_dollar_budget is not None:
+            budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
+        return dp.RunStrategyArgs(
+            strategy="folio_formalization_agent",
+            args={"puzzle": BENCHS[self.bench_id][0]},
+            policy="folio_ask_policy",
+            policy_args={
+                "model_name": self.model_name,
+                "reasoning_effort": self.reasoning_effort,
+                "num_requests": self.num_requests,
+                "api_type": self.api_type,
+            },
+            budget=budget,
+        )
+
+
+@dataclass
+class Z3AgentConfig:
+    bench_id: int
+    model_name: str
+    reasoning_effort: dp.ReasoningEffort
+    temperature: float | None = None
+    max_dollar_budget: float | None = 0.2
+    seed: int = 0
+    num_requests: int = 10
+    api_type: APIType = "responses"
+
+    def instantiate(self, context: object):
+        budget: dict[str, float] = {}
+        if self.max_dollar_budget is not None:
+            budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
+        return dp.RunStrategyArgs(
+            strategy="folio_z3_agent",
+            args={"puzzle": BENCHS[self.bench_id][0]},
+            policy="folio_z3_agent_policy",
+            policy_args={
+                "model_name": self.model_name,
+                "reasoning_effort": self.reasoning_effort,
+                "num_requests": self.num_requests,
+                "api_type": self.api_type,
             },
             budget=budget,
         )
@@ -163,117 +260,39 @@ class IterativeBlacklistConfig:
 
 
 @dataclass
-class AggregateConfig:
+class OneshotConfig:
     bench_id: int
     model_name: str
     reasoning_effort: dp.ReasoningEffort
-    max_rounds_each: int = 5
-    sequence_type: Literal["mixed", "all_normal", "all_normal_reflect"] = (
-        "mixed"
-    )
-    aggregation_type: Literal["majority_vote", "favor_unsat"] = "majority_vote"
+    max_rounds: int = 3
+    style_flag: Literal["literally", "normal", "implicitly"] = "normal"
+    reflect_flag: Literal["only_if_sat", "never", "always"] = "only_if_sat"
     temperature: float | None = None
     max_dollar_budget: float | None = 0.2
     seed: int = 0
+    api_type: APIType = "responses"
 
     def instantiate(self, context: object):
         budget: dict[str, float] = {}
         if self.max_dollar_budget is not None:
             budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
         return dp.RunStrategyArgs(
-            strategy="folio_aggregate",
+            strategy="folio_oneshot",
             args={"puzzle": BENCHS[self.bench_id][0]},
-            policy="folio_aggregate_policy",
+            policy="folio_oneshot_policy",
             policy_args={
                 "model_name": self.model_name,
                 "reasoning_effort": self.reasoning_effort,
-                "max_rounds_each": self.max_rounds_each,
-                "sequence_type": self.sequence_type,
-                "aggregation_type": self.aggregation_type,
+                "temperature": self.temperature,
+                "max_rounds": self.max_rounds,
+                "style_flag": self.style_flag,
+                "reflect_flag": self.reflect_flag,
+                "api_type": self.api_type,
             },
             budget=budget,
         )
 
 
-@dataclass
-class OnlyAskConfig:
-    bench_id: int
-    model_name: str
-    reasoning_effort: dp.ReasoningEffort
-    temperature: float | None = None
-    max_dollar_budget: float | None = 0.2
-    seed: int = 0
-    num_requests: int = 10
-
-    def instantiate(self, context: object):
-        budget: dict[str, float] = {}
-        if self.max_dollar_budget is not None:
-            budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
-        return dp.RunStrategyArgs(
-            strategy="folio_only_ask",
-            args={"puzzle": BENCHS[self.bench_id][0]},
-            policy="folio_ask_policy",
-            policy_args={
-                "model_name": self.model_name,
-                "reasoning_effort": self.reasoning_effort,
-                "num_requests": self.num_requests,
-                # "temperature": self.temperature,
-            },
-            budget=budget,
-        )
-
-
-@dataclass
-class FormalizationAgentConfig:
-    bench_id: int
-    model_name: str
-    reasoning_effort: dp.ReasoningEffort
-    temperature: float | None = None
-    max_dollar_budget: float | None = 0.2
-    seed: int = 0
-    num_requests: int = 10
-
-    def instantiate(self, context: object):
-        budget: dict[str, float] = {}
-        if self.max_dollar_budget is not None:
-            budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
-        return dp.RunStrategyArgs(
-            strategy="folio_formalization_agent",
-            args={"puzzle": BENCHS[self.bench_id][0]},
-            policy="folio_ask_policy",
-            policy_args={
-                "model_name": self.model_name,
-                "reasoning_effort": self.reasoning_effort,
-                "num_requests": self.num_requests,
-                # "temperature": self.temperature,
-            },
-            budget=budget,
-        )
-
-
-@dataclass
-class Z3AgentConfig:
-    bench_id: int
-    model_name: str
-    reasoning_effort: dp.ReasoningEffort
-    temperature: float | None = None
-    max_dollar_budget: float | None = 0.2
-    seed: int = 0
-    num_requests: int = 10
-
-    def instantiate(self, context: object):
-        budget: dict[str, float] = {}
-        if self.max_dollar_budget is not None:
-            budget[dp.DOLLAR_PRICE] = self.max_dollar_budget
-        return dp.RunStrategyArgs(
-            strategy="folio_z3_agent",
-            args={"puzzle": BENCHS[self.bench_id][0]},
-            policy="folio_z3_agent_policy",
-            policy_args={
-                "model_name": self.model_name,
-                "reasoning_effort": self.reasoning_effort,
-                "num_requests": self.num_requests,
-                # "temperature": self.temperature,
-            },
-            budget=budget,
-        )
+if __name__ == "__main__":
+    # print(SAMPLE_IDS)
+    pass

@@ -1,33 +1,30 @@
-You are a logic expert. You are given a list of sentences where the last sentence
-is a conclusion and all preceding sentences are premises. Your task is to determine
-whether the conclusion logically follows from the premises.
+You are a logic expert. You are given a list of sentences where the last sentence is a conclusion and all preceding sentences are premises. Your task is to determine whether the conclusion logically follows from the premises.
 
-You have access to a Z3 SMT solver tool (`check_z3`) that can check the satisfiability
-of first-order logic (FOL) formulas. You are encouraged to use it to verify your
-reasoning. To use it, formalize the premises and conclusion into FOL and call the tool.
+You have access to ar tool (`check_z3`) that can check the satisfiability of first-order logic (FOL) formulas. You are encouraged to use it to verify your reasoning. To use it, formalize the premises and conclusion into FOL and call the tool.
 
-The tool accepts a list of YAML-formatted FOL formalization strings. Each string must
-follow this format:
+The tool accepts a first-order logic representation using the following structured format with sections for `predicates`, `constants`, `constraints`, and `conclusion`. The `predicates` section contains the predicate definitions in the form "Predicate(Arity)", the `constants` section contains the list of constants used in the formulae, and the `constraints` and `conclusion` sections contain the actual formalized FOL formulae.
 
-```yaml
-Predicates:
+The structured format that the tool accepts as input  has four sections: `predicates`, `constants`, `constraints`, and `conclusion`. Each section is a list of strings.
+
+You can call the tool multiple times to try different encodings.
+
+Example tool call:
+
+predicates:
 - Predicate1(2)
 - Predicate2(1)
-Constants:
+constants:
 - Constant1
 - Constant2
-Constraints:
+constraints:
 - ForAll(x, Predicate1(x, Constant1))
 - Implies(Predicate2(Constant2), Exists(y, Predicate1(y, Constant2)))
-Conclusion:
+conclusion:
 - Predicate2(Constant1)
-```
 
-If a section is empty, use a dash:
-```yaml
-Constants:
--
-```
+The tool will check using Z3 SMT Solver if the conclusion logically follows from the premises by asserting the constraints and the negation of the conclusion. If the result is "unsat", the conclusion follows from the premises. If the result is "sat", it does not (a countermodel exists). If the result is "unknown", it cannot be determined.
+
+The tool is stateless, so you can call it multiple times with different formalizations if needed. You can also use it to check intermediate steps in your reasoning, not just the final conclusion.
 
 The FOL syntax is as follows:
 - Bound variables are lowercase letters (e.g., x, y, z).
@@ -56,8 +53,5 @@ Tips:
 - If the result is "sat", the conclusion does NOT follow (a countermodel exists).
 - You may call the tool multiple times to explore different formalizations.
 
-After reasoning (and optionally using the tool), provide your final answer as
-a single word: "True" if the conclusion follows, "False" if it does not, or
-"Unknown" if it cannot be determined.
+After reasoning AND USING THE TOOL (you should use it), provide your final answer as a structured response belonging to the `DeductionAnswer` class: The `str | None` field should be `True` if the conclusion follows, `False` if it does not, or `None` if it cannot be determined.
 
-{% include "stdlib/format.jinja" %}

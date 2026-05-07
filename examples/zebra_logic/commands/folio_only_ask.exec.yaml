@@ -12,7 +12,8 @@ args:
   policy: folio_ask_policy
   policy_args:
     model_name: gpt-5-nano
-    reasoning_effort: medium
+    reasoning_effort: low
+    api_type: responses
   budget:
     num_requests: 5
 outcome:
@@ -24,10 +25,10 @@ outcome:
     spent_budget:
       num_requests: 1
       num_completions: 1
-      input_tokens: 246
-      output_tokens: 3855
+      input_tokens: 267
+      output_tokens: 1107
       cached_input_tokens: 0
-      price: 0.0015543
+      price: 0.00045615
     success_nodes: [2]
     raw_trace:
       nodes:
@@ -41,10 +42,9 @@ outcome:
           space: 1
           answer:
             mode: null
-            content: |-
-              ```text
-              True
-              ```
+            content:
+              structured:
+                answer: true
             tool_calls: []
             justification: null
     log:
@@ -52,7 +52,7 @@ outcome:
         level: info
         message_id: 0
         related: []
-        time: 2026-03-03T18:22:31.333093
+        time: 2026-05-05T18:27:06.588392
         node: null
         space: 1
         metadata:
@@ -63,12 +63,10 @@ outcome:
                 content: |-
                   Does the conclusion logically follow from the premises?
 
-                  The answer "True" means the conclusion follows from the premises.
-                  The answer "False" means the conclusion does NOT follow from the premises.
-                  The answer "Unknown" means it cannot be determined whether the conclusion
+                  The answer `True` means the conclusion follows from the premises.
+                  The answer `False` means the conclusion does NOT follow from the premises.
+                  The answer `None` means it cannot be determined whether the conclusion
                   follows from the premises.
-                  Answer in a triple backtick code block with the language set to "text".
-                  The answer should be a single word: "True", "False", or "Unknown".
               - role: user
                 content: |-
                   sentences:
@@ -81,39 +79,51 @@ outcome:
                       on caffeine.
                     - 'Conclusion: Rina doesn''t want to be addicted to caffeine or is unaware that caffeine is a drug.'
             options: {}
+            structured_output:
+              name: DeductionAnswer
+              description: "DeductionAnswer(answer: bool | None)"
+              schema:
+                properties:
+                  answer:
+                    anyOf:
+                      - type: boolean
+                      - type: "null"
+                    title: Answer
+                required: [answer]
+                title: DeductionAnswer
+                type: object
       - message: llm_response
         level: info
         message_id: 1
         related: [0]
-        time: 2026-03-03T18:23:00.618110
+        time: 2026-05-05T18:27:20.524746
         node: null
         space: 1
         metadata:
           response:
             outputs:
-              - content: |-
-                  ```text
-                  True
-                  ```
+              - content:
+                  structured:
+                    answer: true
                 tool_calls: []
             budget:
               values:
                 num_requests: 1
                 num_completions: 1
-                input_tokens: 246
-                output_tokens: 3855
+                input_tokens: 267
+                output_tokens: 1107
                 cached_input_tokens: 0
-                price: 0.0015543
+                price: 0.00045615
             log_items: []
             model_name: gpt-5-nano-2025-08-07
             usage_info:
-              completion_tokens: 3855
-              prompt_tokens: 246
-              total_tokens: 4101
+              completion_tokens: 1107
+              prompt_tokens: 267
+              total_tokens: 1374
               completion_tokens_details:
                 accepted_prediction_tokens: 0
                 audio_tokens: 0
-                reasoning_tokens: 3840
+                reasoning_tokens: 1088
                 rejected_prediction_tokens: 0
               prompt_tokens_details:
                 audio_tokens: 0
@@ -121,13 +131,13 @@ outcome:
           usage:
             model: gpt-5-nano-2025-08-07
             usage:
-              completion_tokens: 3855
-              prompt_tokens: 246
-              total_tokens: 4101
+              completion_tokens: 1107
+              prompt_tokens: 267
+              total_tokens: 1374
               completion_tokens_details:
                 accepted_prediction_tokens: 0
                 audio_tokens: 0
-                reasoning_tokens: 3840
+                reasoning_tokens: 1088
                 rejected_prediction_tokens: 0
               prompt_tokens_details:
                 audio_tokens: 0
@@ -160,10 +170,11 @@ outcome:
                   - id: 1
                     hint: null
                     value:
-                      short: "True"
-                      long: "'True'"
+                      short: DeductionAnswer(answer=True)
+                      long: DeductionAnswer(answer=True)
                       json_provided: true
-                      json: "True"
+                      json:
+                        answer: true
           actions:
             - ref:
                 with_ids: $1{@1}
@@ -172,10 +183,11 @@ outcome:
               related_success_nodes: []
               related_answers: [1]
               value:
-                short: "True"
-                long: "'True'"
+                short: DeductionAnswer(answer=True)
+                long: DeductionAnswer(answer=True)
                 json_provided: true
-                json: "True"
+                json:
+                  answer: true
               destination: 2
           origin: root
         "2":

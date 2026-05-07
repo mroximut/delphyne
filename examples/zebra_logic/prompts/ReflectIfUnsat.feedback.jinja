@@ -1,9 +1,9 @@
-{% if feedback.meta and feedback.meta.get('error') and feedback.meta.get('formalization_yaml') %}
+{% if feedback.meta and feedback.meta.get('error') and feedback.meta.get('formalization_str') %}
 
 Tried to encode the following formalization into Z3:
 
 """
-{{ feedback.meta['formalization_yaml'] }}
+{{ feedback.meta['formalization_str'] }}
 """
 
 but encountered the following error:

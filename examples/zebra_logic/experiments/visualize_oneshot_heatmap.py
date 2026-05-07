@@ -27,7 +27,7 @@ model_map = {
     "literal": 0,
     "implicitly": 1,
     "normal": 2,
-    "iterative_blacklist": 3,
+    # "iterative_blacklist": 3,
 }
 
 # Initialize data array with NaN
@@ -48,14 +48,20 @@ im = ax.imshow(masked_data, cmap="RdYlGn", aspect="auto", vmin=60, vmax=83)
 
 # Set ticks and labels
 ax.set_xticks(np.arange(3))
-ax.set_yticks(np.arange(4))
+ax.set_yticks(np.arange(3))
 ax.set_xticklabels(["No Reflect", "Reflect", "Reflect if SAT"])
-ax.set_yticklabels(["Literal", "Implicitly", "Normal", "Iterative\nBlacklist"])
+ax.set_yticklabels(
+    [
+        "Literal",
+        "Implicitly",
+        "Normal",
+    ]
+)  # "Iterative\nBlacklist"])
 
 ax.set_xlabel("Reflection Strategy", fontsize=12)
 ax.set_ylabel("Model Type / Strategy", fontsize=12)
 ax.set_title(
-    "Oneshot Strategy Performance (+ Iterative Blacklist)",
+    "Oneshot Strategy Performance",
     fontsize=14,
     fontweight="bold",
 )
@@ -113,10 +119,14 @@ ax.axhline(y=2.5, color="red", linestyle="--", linewidth=3, alpha=0.7)
 
 plt.tight_layout()
 plt.savefig(
-    "output_9feb/oneshot_heatmap_csv.png", dpi=300, bbox_inches="tight"
+    csv_path.replace("oneshot_summary.csv", "oneshot_heatmap_csv.png"),
+    dpi=300,
+    bbox_inches="tight",
 )
 print(f"Reading data from: {csv_path}")
-print("Saved to output_9feb/oneshot_heatmap_csv.png")
+print(
+    f"Saved to: {csv_path.replace('oneshot_summary.csv', 'oneshot_heatmap_csv.png')}"
+)
 plt.show()
 
 # Print insights

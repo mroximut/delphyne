@@ -4,6 +4,7 @@ from typing import Any, Literal, Sequence
 import folio_experiments as fe
 import pandas as pd
 import yaml
+from pydantic import BaseModel
 
 from delphyne.stdlib.experiments.experiment_launcher import (
     CONFIGS_SUBDIR,
@@ -11,6 +12,23 @@ from delphyne.stdlib.experiments.experiment_launcher import (
     RESULT_FILE,
     RESULTS_SUMMARY,
 )
+
+
+class StrFormalization(BaseModel):
+    predicates: list[str] | None = None
+    constants: list[str] | None = None
+    constraints: list[str] | None = None
+    conclusion: list[str] | None = None
+
+
+class Verdict(BaseModel):
+    reflection_flag: Literal["always", "never", "only_if_sat", "only_if_unsat"]
+    style_flag: Literal["normal", "literally", "implicitly"]
+    formalizations: list[StrFormalization]
+    refined_formalizations: list[StrFormalization]
+    first_solution: bool | None
+    final_solution: bool | None
+
 
 # ONESHOT = "output_27jan/oneshot_experiment"
 # NAIVE = "output_20jan/iterative_naive_experiment"
@@ -24,58 +42,81 @@ FORMALIZATION_AGENT = "output_3mar/formalization_agent_experiment"
 Z3_AGENT = "output_3mar/z3_agent_experiment"
 
 
+def _any(
+    verdicts: Sequence[Verdict], sol: Literal["final", "first"]
+) -> bool | None:
+    if sol == "final":
+        return (
+            any(v.final_solution for v in verdicts)
+            if len(verdicts) > 0
+            else None
+        )
+    elif sol == "first":
+        return (
+            any(v.first_solution for v in verdicts)
+            if len(verdicts) > 0
+            else None
+        )
+
+
+def _maj(
+    verdicts: Sequence[Verdict], sol: Literal["final", "first"]
+) -> bool | None:
+    if sol == "final":
+        return (
+            sum(1 for v in verdicts if v.final_solution) >= len(verdicts) / 2
+            if len(verdicts) > 0
+            else None
+        )
+    elif sol == "first":
+        return (
+            sum(1 for v in verdicts if v.first_solution) >= len(verdicts) / 2
+            if len(verdicts) > 0
+            else None
+        )
+
+
 def process_output_aggregate(
-    values: tuple[
-        bool | None,
-        Sequence[tuple[list[str], tuple[bool | None, bool | None]]],
-    ],
+    returned: tuple[bool | None, Sequence[Verdict]],
     sequence_type: Literal["mixed", "all_normal_reflect"],
     aggregation_type: Literal["majority_vote", "favor_unsat"],
     reflection_type: Literal[
         "mixed", "always", "never", "only_if_sat", "only_if_unsat"
     ],
 ) -> bool | None:
+    _, verdicts = returned
     types = (aggregation_type, sequence_type, reflection_type)
     if types in [
         ("majority_vote", "mixed", "mixed"),
         ("majority_vote", "all_normal_reflect", "always"),
     ]:
-        return values[0]
+        return _maj(verdicts, "final")  # res
     if types in [
         ("favor_unsat", "mixed", "mixed"),
         ("favor_unsat", "all_normal_reflect", "always"),
     ]:
-        return (
-            any(sol for _, (_, sol) in values[1])
-            if len(values[1]) > 0
-            else None
-        )
+        return _any(verdicts, "final")
     if types in [
         ("majority_vote", "mixed", "never"),
         ("majority_vote", "all_normal_reflect", "never"),
     ]:
-        results = [sol for _, (sol, _) in values[1] if sol is not None]
-        return (
-            sum(1 for r in results if r) >= len(results) / 2
-            if len(results) > 0
-            else None
-        )
+        return _maj(verdicts, "first")
     if types in [
         ("favor_unsat", "mixed", "never"),
         ("favor_unsat", "all_normal_reflect", "never"),
     ]:
-        return (
-            any(sol for _, (sol, _) in values[1] if sol is not None)
-            if len(values[1]) > 0
-            else None
-        )
+        return _any(verdicts, "first")
     if reflection_type == "only_if_sat":
         reflects = [
             reflect
-            for _, (sol, reflect) in values[1]
+            for (sol, reflect) in [
+                (v.first_solution, v.final_solution) for v in verdicts
+            ]
             if sol is False and reflect is not None
         ]
-        prelims = [sol for _, (sol, _) in values[1] if sol is True]
+        prelims = [
+            v.first_solution for v in verdicts if v.first_solution is True
+        ]
         results = prelims + reflects
         if types in [
             ("majority_vote", "mixed", "only_if_sat"),
@@ -91,46 +132,55 @@ def process_output_aggregate(
             ("favor_unsat", "all_normal_reflect", "only_if_sat"),
         ]:
             return any(r for r in results) if len(results) > 0 else None
+    raise ValueError(
+        "Invalid combination: "
+        + f"{sequence_type}, {aggregation_type}, {reflection_type}"
+    )
 
 
 def process_output_for_oneshot(
-    values: tuple[
-        bool | None,
-        Sequence[tuple[list[str], tuple[bool | None, bool | None]]],
-    ],
+    returned: tuple[bool | None, Sequence[Verdict]],
     model_type: Literal["literal", "normal", "implicitly"],
     reflection_type: Literal["always", "never", "only_if_sat"],
 ) -> bool | None:
+    _, vs = returned
     match (model_type, reflection_type):
         case ("literal", "always"):
-            res = [sol for li, (_, sol) in values[1] if li[1] == "literally"]
+            res = [v.final_solution for v in vs if v.style_flag == "literally"]
             return res[0] if len(res) == 1 else None
         case ("literal", "never"):
-            res = [sol for li, (sol, _) in values[1] if li[1] == "literally"]
+            res = [v.first_solution for v in vs if v.style_flag == "literally"]
             return res[0] if len(res) == 1 else None
         case ("implicitly", "always"):
-            res = [sol for li, (_, sol) in values[1] if li[1] == "implicitly"]
+            res = [
+                v.final_solution for v in vs if v.style_flag == "implicitly"
+            ]
             return res[0] if len(res) == 1 else None
         case ("implicitly", "never"):
-            res = [sol for li, (sol, _) in values[1] if li[1] == "implicitly"]
+            res = [
+                v.first_solution for v in vs if v.style_flag == "implicitly"
+            ]
             return res[0] if len(res) == 1 else None
         case ("normal", "always"):
-            res = [sol for li, (_, sol) in values[1] if li[1] == "normal"]
+            res = [v.final_solution for v in vs if v.style_flag == "normal"]
             return res[0] if len(res) >= 1 else None
         case ("normal", "only_if_sat"):
             res = [
-                (sol1, sol2)
-                for li, (sol1, sol2) in values[1]
-                if li[1] == "normal"
+                (v.first_solution, v.final_solution)
+                for v in vs
+                if v.style_flag == "normal"
             ]
             sol1 = res[0][0] if len(res) >= 1 else None
             sol2 = res[0][1] if len(res) >= 1 else None
             return sol1 if sol1 is True else sol2 if sol2 is not None else None
         case ("normal", "never"):
-            res = [sol for li, (sol, _) in values[1] if li[1] == "normal"]
+            res = [v.first_solution for v in vs if v.style_flag == "normal"]
             return res[0] if len(res) >= 1 else None
         case _:
-            pass
+            raise ValueError(
+                "Invalid combination of model_type and "
+                + f"reflection_type: {model_type}, {reflection_type}"
+            )
 
 
 def process_results(
@@ -144,11 +194,11 @@ def process_results(
         "only_ask",
     ],
     save_name: str = "merged_results.csv",
-    sequence_type: str = "",
-    aggregation_type: str = "",
-    reflection_type: str = "",
-    oneshot_model_type: str = "",
-    oneshot_reflect_type: str = "",
+    sequence_type: str | None = None,
+    aggregation_type: str | None = None,
+    reflection_type: str | None = None,
+    oneshot_model_type: str | None = None,
+    oneshot_reflect_type: str | None = None,
 ) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     path_prefix = Path(__file__).resolve().parent / experiment_dir
@@ -181,14 +231,14 @@ def process_results(
 
             if strategy_type == "aggregate":
                 result = process_output_aggregate(
-                    values=result,
+                    returned=(result[0], [Verdict(**v) for v in result[1]]),
                     sequence_type=sequence_type,  # type: ignore
                     aggregation_type=aggregation_type,  # type: ignore
                     reflection_type=reflection_type,  # type: ignore
                 )
             elif strategy_type == "oneshot":
                 result = process_output_for_oneshot(
-                    values=result,
+                    returned=(result[0], [Verdict(**v) for v in result[1]]),
                     model_type=oneshot_model_type,  # type: ignore
                     reflection_type=oneshot_reflect_type,  # type: ignore
                 )
@@ -223,12 +273,14 @@ def process_results(
     correct = merged_df["correct"].sum()
     total = len(merged_df["ground_truth"].dropna())
     print(
-        f"Correct: {correct}/{total} ({correct / total:.2%}) for {experiment_dir}, "
-        f"strategy: {strategy_type}"
+        f"Correct: {correct}/{total} ({correct / total:.2%}) for "
+        f"{experiment_dir}, strategy: {strategy_type}"
         + (
-            f", sequence_type: {sequence_type}, aggregation_type: {aggregation_type}, reflection_type: {reflection_type}"
+            f", sequence_type: {sequence_type}, aggregation_type:"
+            f"{aggregation_type}, reflection_type: {reflection_type}"
             if strategy_type == "aggregate"
-            else f", model_type: {oneshot_model_type}, reflect: {oneshot_reflect_type}"  # type:ignore
+            else f", model_type: {oneshot_model_type}, "
+            f" reflect: {oneshot_reflect_type}"
             if strategy_type == "oneshot"
             else ""
         )
@@ -248,39 +300,22 @@ def process_results(
     }
 
 
-def get_correctness_ratio(
-    merged_df_path: Path, effort: str, reflect_if_sat: bool = False
-) -> tuple[int, int]:
-    merged_df = pd.read_csv(merged_df_path)  # type: ignore
-    df_effort = merged_df[merged_df["reasoning_effort"] == effort]
-    if "reflect_if_sat" in df_effort.columns:
-        df_effort = df_effort[df_effort["reflect_if_sat"] == reflect_if_sat]
-    if df_effort.empty and not reflect_if_sat:
-        df_effort = merged_df[merged_df["reasoning_effort"] == effort]
-        df_effort = df_effort[df_effort["reflect_if_sat"].isnull()]
-    correct = df_effort["correct"].sum()
-    total = len(df_effort["ground_truth"].dropna())
-    return int(correct), int(total)
+def main_aggregate(experiment_dir: str):
+    oneshot_dicts: list[dict[str, Any]] = []
+    aggregate = experiment_dir + "/aggregate_experiment"
 
-
-def merged_df_path(experiment_dir: str) -> Path:
-    path_prefix = Path(__file__).resolve().parent / experiment_dir
-    return path_prefix / "merged_results.csv"
-
-
-def main_aggregate():
-    oneshot_dicts = [
-        process_results(
-            BLACKLIST_REFLECT,
-            "blacklist",
-            oneshot_model_type="iterative_blacklist",
-            oneshot_reflect_type="only_if_sat",
-        )
-    ]
+    # oneshot_dicts += [
+    #     process_results(
+    #         BLACKLIST_REFLECT,
+    #         "blacklist",
+    #         oneshot_model_type="iterative_blacklist",
+    #         oneshot_reflect_type="only_if_sat",
+    #     )
+    # ]
 
     aggregate_dicts = [
         process_results(
-            AGGREGATE,
+            aggregate,
             "aggregate",
             sequence_type=sequence_type,
             aggregation_type=aggregation_type,
@@ -298,7 +333,7 @@ def main_aggregate():
 
     oneshot_dicts += [
         process_results(
-            AGGREGATE,
+            aggregate,
             "oneshot",
             sequence_type="mixed",
             reflection_type="mixed",
@@ -312,7 +347,7 @@ def main_aggregate():
 
     oneshot_dicts += [
         process_results(
-            AGGREGATE,
+            aggregate,
             "oneshot",
             sequence_type="all_normal_reflect",
             reflection_type="always",
@@ -325,43 +360,49 @@ def main_aggregate():
 
     pd.DataFrame(aggregate_dicts).to_csv(
         Path(__file__).resolve().parent
-        / "output_9feb"
+        / experiment_dir
         / "aggregate_summary.csv",
         index=False,
     )
     pd.DataFrame(oneshot_dicts).to_csv(
         Path(__file__).resolve().parent
-        / "output_9feb"
+        / experiment_dir
         / "oneshot_summary.csv",
         index=False,
     )
 
 
-def main_agents():
+def main_agents(experiment_dir: str):
+    only_ask = experiment_dir + "/only_ask_experiment"
+    formalization_agent = experiment_dir + "/formalization_agent_experiment"
+    z3_agent = experiment_dir + "/z3_agent_experiment"
     agent_dicts = [
         process_results(
-            ONLY_ASK,
+            only_ask,
             "only_ask",
             save_name="merged_results_only_ask.csv",
         ),
         process_results(
-            FORMALIZATION_AGENT,
+            formalization_agent,
             "formalization_agent",
             save_name="merged_results_formalization_agent.csv",
         ),
         process_results(
-            Z3_AGENT,
+            z3_agent,
             "z3_agent",
             save_name="merged_results_z3_agent.csv",
         ),
     ]
 
     pd.DataFrame(agent_dicts).to_csv(
-        Path(__file__).resolve().parent / "output_3mar" / "agents_summary.csv",
+        Path(__file__).resolve().parent
+        / experiment_dir
+        / "agents_summary.csv",
         index=False,
     )
 
 
 if __name__ == "__main__":
-    # main_aggregate()
-    main_agents()
+    main_aggregate("output_5may")
+    # main_agents("output_5may")
+    pass

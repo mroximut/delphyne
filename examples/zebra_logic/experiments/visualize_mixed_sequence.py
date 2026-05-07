@@ -128,12 +128,16 @@ fig.suptitle(
 
 plt.tight_layout()
 plt.savefig(
-    "output_9feb/aggregate_sequence_comparison_csv.png",
+    csv_path.replace(
+        "aggregate_summary.csv", "aggregate_sequence_comparison_csv.png"
+    ),
     dpi=300,
     bbox_inches="tight",
 )
 print(f"Reading data from: {csv_path}")
-print("Saved to output_9feb/aggregate_sequence_comparison_csv.png")
+print(
+    f"Saved to: {csv_path.replace('aggregate_summary.csv', 'aggregate_sequence_comparison_csv.png')}"
+)
 plt.show()
 
 # Calculate statistics dynamically

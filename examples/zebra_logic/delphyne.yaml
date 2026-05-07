@@ -1,12 +1,10 @@
-strategy_dirs: ["."]
-prompt_dirs: ["prompts"]
+strategy_dirs: [".", "examples/zebra_logic"]
+prompt_dirs: ["prompts", "examples/zebra_logic/prompts"]
 modules:
-  - "zebra_baseline"
   - "folio_baseline"
-  - "folio_iterative_blacklist"
+#  - "folio_iterative_blacklist"
   - "folio_aggregate"
   - "folio_standard"
 demo_files:
-  - "demos/zebra_baseline.demo.yaml"
   - "demos/folio_baseline.demo.yaml"
-  - "demos/folio_iterative_blacklist.demo.yaml"
+#  - "demos/folio_iterative_blacklist.demo.yaml"

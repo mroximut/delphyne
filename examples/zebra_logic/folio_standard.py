@@ -1,7 +1,9 @@
 import ast
 from dataclasses import dataclass
 
-from z3_tools import run_fol_in_z3
+import fol
+from folio_baseline import APIType
+from z3_tools import Z3Response, run_fol_in_z3
 
 import delphyne as dp
 from delphyne import (
@@ -15,39 +17,37 @@ from delphyne import (
 
 
 @dataclass
-class CheckDeduction(dp.Query[str]):
+class DeductionAnswer:
+    answer: bool | None
+
+
+@dataclass
+class CheckDeduction(dp.Query[DeductionAnswer]):
     """
     Does the conclusion logically follow from the premises?
 
-    The answer "True" means the conclusion follows from the premises.
-    The answer "False" means the conclusion does NOT follow from the premises.
-    The answer "Unknown" means it cannot be determined whether the conclusion
+    The answer `True` means the conclusion follows from the premises.
+    The answer `False` means the conclusion does NOT follow from the premises.
+    The answer `None` means it cannot be determined whether the conclusion
     follows from the premises.
-    Answer in a triple backtick code block with the language set to "text".
-    The answer should be a single word: "True", "False", or "Unknown".
     """
 
     sentences: list[str]
 
-    __parser__ = dp.last_code_block.trim
+    __parser__ = dp.structured
 
 
 @dataclass
-class CheckZ3(dp.AbstractTool[str]):
+class CheckZ3(dp.AbstractTool[Z3Response]):
     """
     Check the satisfiability of a list of first-order logic formulas
-    using the Z3 SMT solver. Each formula should be a YAML-formatted
-    FOL formalization string. The tool returns the solver's verdict
+    using the Z3 SMT solver.
+    The tool returns the solver's verdict
     (sat, unsat, unknown, or error) along with the model or error
     details.
     """
 
-    formalizations: list[str]
-
-
-@dataclass
-class DeductionAnswer:
-    answer: str
+    formalization: fol.StrFormalization
 
 
 @dataclass
@@ -58,66 +58,49 @@ class CheckDeductionWithZ3(dp.Query[dp.Response[DeductionAnswer, CheckZ3]]):
     __parser__ = dp.final_tool_call.response
 
 
-def _parse_bool(result_str: str) -> bool | None:
-    return (
-        True
-        if result_str == "True"
-        else False
-        if result_str == "False"
-        else None
-    )
-
-
 @dataclass
-class FolioOnlyAskIP:
+class FolioAskIP:
     check_deduction: dp.PromptingPolicy
 
 
 @strategy
-def _run_z3_tool(tool_call: CheckZ3) -> Strategy[Compute, object, str]:
-    response = yield from dp.compute(run_fol_in_z3)(
-        tool_call.formalizations,
-        step_type="All",
-        permanently=False,
+def _run_z3_tool(tool_call: CheckZ3) -> Strategy[Compute, object, Z3Response]:
+    ret = yield from dp.compute(run_fol_in_z3)(
+        [tool_call.formalization], step_type="All"
     )
-    parts = [f"Status: {response.status}"]
-    if response.model is not None:
-        parts.append(f"Model/Core: {response.model}")
-    if response.error is not None:
-        parts.append(f"Error: {response.error}")
-    return "\n".join(parts)
+    return ret
 
 
 @strategy
 def folio_only_ask(
     puzzle: str,
-) -> Strategy[Branch | Fail, FolioOnlyAskIP, bool | None]:
+) -> Strategy[Branch | Fail, FolioAskIP, bool | None]:
     sentences = puzzle.strip().split("\n")
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
     result = yield from dp.branch(
         CheckDeduction(sentences=sentences).using(
-            lambda p: p.check_deduction, FolioOnlyAskIP
+            lambda p: p.check_deduction, FolioAskIP
         )
     )
-    return _parse_bool(result)
+    return result.answer
 
 
 @strategy
 def folio_formalization_agent(
     puzzle: str,
-) -> Strategy[Branch | Fail, FolioOnlyAskIP, bool | None]:
+) -> Strategy[Branch | Fail, FolioAskIP, bool | None]:
     sentences = puzzle.strip().split("\n")
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
     result = yield from dp.interact(
         step=lambda prefix, _: CheckDeductionWithZ3(
             sentences=sentences, prefix=prefix
-        ).using(lambda p: p.check_deduction, FolioOnlyAskIP),
+        ).using(lambda p: p.check_deduction, FolioAskIP),
         process=lambda ans, _: dp.const_space(ans),
         tools={
             CheckZ3: lambda call: _run_z3_tool(call).using(dp.just_compute)
         },
     )
-    return _parse_bool(result.answer)
+    return result.answer
 
 
 @ensure_compatible(folio_only_ask)
@@ -126,12 +109,13 @@ def folio_ask_policy(
     model_name: dp.StandardModelName = "gpt-5-nano",
     reasoning_effort: dp.ReasoningEffort = "low",
     num_requests: int = 10,
-) -> dp.Policy[Branch | Fail, FolioOnlyAskIP]:
+    api_type: APIType = "responses",
+) -> dp.Policy[Branch | Fail, FolioAskIP]:
     budget = dp.BudgetLimit({dp.NUM_REQUESTS: num_requests})
     model = dp.standard_model(
-        model_name, {"reasoning_effort": reasoning_effort}
+        model_name, {"reasoning_effort": reasoning_effort}, api_type=api_type
     )
-    return dp.with_budget(budget) @ dp.dfs() & FolioOnlyAskIP(
+    return dp.with_budget(budget) @ dp.dfs() & FolioAskIP(
         check_deduction=dp.few_shot(model=model)
     )
 
@@ -139,113 +123,40 @@ def folio_ask_policy(
 # --- Z3 constraint solver agent ---
 
 # Whitelisted z3 names available in eval() expressions.
-_Z3_ALLOWED_NAMES: set[str] = {
-    # Sorts
-    "IntSort",
+_Z3_ALLOWED_NAMES: list[str] = [
+    # Core sorts / constructors
     "BoolSort",
-    "RealSort",
-    "StringSort",
-    "BitVecSort",
-    "ArraySort",
-    "SetSort",
     "DeclareSort",
-    # Variable / constant constructors
-    "Int",
-    "Ints",
-    "Bool",
-    "Bools",
-    "Real",
-    "Reals",
-    "BitVec",
-    "BitVecs",
-    "String",
-    "Strings",
+    # Term / constant / function constructors
     "Const",
-    "Consts",
-    "FreshInt",
-    "FreshBool",
-    "FreshReal",
-    "FreshConst",
-    "Array",
-    "K",
-    # Literal values
-    "IntVal",
-    "RealVal",
-    "BoolVal",
-    "BitVecVal",
-    "StringVal",
-    "RatVal",
-    # Function declarations
     "Function",
-    # Logical connectives
+    # Logical connectives / predicates
+    "Not",
     "And",
     "Or",
-    "Not",
-    "Implies",
     "Xor",
-    "If",
+    "Implies",
     "Distinct",
+    "If",
     # Quantifiers
     "ForAll",
     "Exists",
     "Lambda",
-    # Arithmetic helpers
+    # Integer support
+    "IntSort",
+    "Int",
+    "Ints",
+    "IntVal",
+    "FreshInt",
     "Sum",
     "Product",
-    # Enumerations / datatypes
-    "EnumSort",
-    "Datatype",
-    # Set operations
-    "EmptySet",
-    "FullSet",
-    "SetAdd",
-    "SetDel",
-    "SetUnion",
-    "SetIntersect",
-    "SetComplement",
-    "IsMember",
-    "IsSubset",
-    # String operations
-    "Length",
-    "SubString",
-    "IndexOf",
-    "Contains",
-    "PrefixOf",
-    "SuffixOf",
-    "Replace",
-    "Concat",
-    "Re",
-    "InRe",
-    "Union",
-    "Star",
-    "Plus",
-    "Option",
-    # Misc
+    # Misc helpers
     "simplify",
     "substitute",
-}
+]
 
 # Whitelisted attribute names allowed on z3 objects.
-_Z3_ALLOWED_ATTRS: set[str] = {
-    "sort",
-    "decl",
-    "sexpr",
-    "as_long",
-    "as_fraction",
-    "num_args",
-    "arg",
-    "children",
-    "arity",
-    "domain",
-    "range",
-    "name",
-    "accessor",
-    "constructor",
-    "recognizer",
-    "num_constructors",
-    "declare",
-    "create",
-}
+_Z3_ALLOWED_ATTRS: list[str] = []
 
 
 @dataclass
@@ -257,23 +168,24 @@ class Z3Declaration:
 
 
 @dataclass
-class RunZ3Solver(dp.AbstractTool[str]):
+class Z3Result:
+    status: str
+    model: str | None
+    error: str | None
+
+
+@dataclass
+class RunZ3Solver(dp.AbstractTool[Z3Result]):
     """
     Check satisfiability of constraints using the Z3 SMT solver.
 
     `declarations`: list of Z3 variable/function declarations. Each has a
-      `name` (the variable name) and `expr` (a Z3 constructor expression).
-      Example: [{"name": "x", "expr": "Int('x')"},
-               {"name": "f", "expr": "Function('f', IntSort(), BoolSort())"}]
+    `name` (the variable name) and `expr` (a Z3 constructor expression).
+    Example: [{"name": "x", "expr": "Int('x')"},
+        {"name": "f", "expr": "Function('f', IntSort(), BoolSort())"}]
 
     `constraints`: list of Z3 boolean expressions as strings.
-      Example: ["x + y > 5", "x < 10", "f(x) == True"]
-
-    Available constructors: Int, Ints, Bool, Bools, Real, Reals,
-      Const, Function, DeclareSort, EnumSort, Datatype, Array, ...
-    Available functions: And, Or, Not, Implies, Xor, If, Distinct,
-      ForAll, Exists, Lambda, Sum, Product, ...
-    Available sorts: IntSort, BoolSort, RealSort, StringSort, ...
+    Example: ["x + y > 5", "x < 10", "f(x) == True"]
 
     The solver result (sat/unsat/unknown) and model are returned.
     """
@@ -286,15 +198,15 @@ def _validate_z3_expr(expr: str) -> str | None:
     """Validate a single expression string. Returns error or None."""
     try:
         tree = ast.parse(expr, mode="eval")
-    except SyntaxError as exc:
-        return f"SyntaxError in '{expr}': {exc}"
+    except Exception as e:
+        return f"Error in '{expr}': {str(e)}"
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Attribute):
             if node.attr not in _Z3_ALLOWED_ATTRS:
                 return (
                     f"Attribute '.{node.attr}' is not allowed. "
-                    f"Allowed: {sorted(_Z3_ALLOWED_ATTRS)}"
+                    f"Allowed: {_Z3_ALLOWED_ATTRS}"
                 )
     return None
 
@@ -317,45 +229,58 @@ def _build_z3_namespace() -> dict[str, object]:
     return ns
 
 
-def _run_z3_solver(tool_call: RunZ3Solver) -> str:
+def _run_z3_solver(tool_call: RunZ3Solver) -> Z3Result:
     import z3  # type: ignore
 
     ns = _build_z3_namespace()
+    ret = Z3Result(status="error", model=None, error=None)
 
     # Evaluate declarations and add them to the namespace
     for decl in tool_call.declarations:
-        if not decl.name.isidentifier() or decl.name.startswith("_"):
-            return f"Error: Invalid variable name '{decl.name}'."
+        if not decl.name.isidentifier():
+            ret.error = f"Error: Invalid variable name '{decl.name}'."
+            return ret
         err = _validate_z3_expr(decl.expr)
         if err is not None:
-            return f"Error in declaration '{decl.name}': {err}"
+            ret.error = f"Error in declaration '{decl.name}': {err}"
+            return ret
         try:
             ns[decl.name] = eval(decl.expr, ns)  # noqa: S307
-        except Exception as exc:
-            return f"Error in declaration '{decl.name}': {type(exc).__name__}: {exc}"
+        except Exception as e:
+            ret.error = (
+                f"Error in declaration '{decl.name}':"
+                + f"{type(e).__name__}: {e}"
+            )
+            return ret
 
     # Evaluate constraints and add to solver
     solver = z3.Solver()
     for i, constraint in enumerate(tool_call.constraints):
         err = _validate_z3_expr(constraint)
         if err is not None:
-            return f"Error in constraint {i}: {err}"
+            ret.error = f"Error in constraint {i}: {err}"
+            return ret
         try:
             c = eval(constraint, ns)  # noqa: S307
-        except Exception as exc:
-            return f"Error in constraint {i}: {type(exc).__name__}: {exc}"
+        except Exception as e:
+            ret.error = f"Error in constraint {i}: {type(e).__name__}: {e}"
+            return ret
         solver.add(c)  # type: ignore
 
     # Check and format result
     result = solver.check()  # type: ignore
-    parts = [f"Status: {result}"]
+    ret.status = str(result)
     if result == z3.sat:
         model = solver.model()
-        parts.append(f"Model: {model}")
-    elif result == z3.unsat:
-        # Try to get unsat core if tracking was enabled
-        pass
-    return "\n".join(parts)
+        ret.model = str(model)
+
+    return ret
+
+
+@strategy
+def run_z3_solver(call: RunZ3Solver) -> Strategy[Compute, object, Z3Result]:
+    ret = yield from dp.compute(_run_z3_solver)(call)
+    return ret
 
 
 @dataclass
@@ -363,6 +288,8 @@ class CheckDeductionZ3Code(
     dp.Query[dp.Response[DeductionAnswer, RunZ3Solver]]
 ):
     sentences: list[str]
+    allowed_names: list[str]
+    allowed_attrs: list[str]
     prefix: dp.AnswerPrefix = ()
 
     __parser__ = dp.final_tool_call.response
@@ -381,23 +308,31 @@ def folio_z3_agent(
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
     result = yield from dp.interact(
         step=lambda prefix, _: CheckDeductionZ3Code(
-            sentences=sentences, prefix=prefix
+            sentences=sentences,
+            prefix=prefix,
+            allowed_names=_Z3_ALLOWED_NAMES,
+            allowed_attrs=_Z3_ALLOWED_ATTRS,
         ).using(lambda p: p.check_deduction, FolioZ3AgentIP),
         process=lambda ans, _: dp.const_space(ans),
-        tools={RunZ3Solver: lambda call: dp.const_space(_run_z3_solver(call))},
+        tools={
+            RunZ3Solver: lambda call: run_z3_solver(call).using(
+                dp.just_compute
+            )
+        },
     )
-    return _parse_bool(result.answer)
+    return result.answer
 
 
 @ensure_compatible(folio_z3_agent)
 def folio_z3_agent_policy(
     model_name: dp.StandardModelName = "gpt-5-nano",
-    reasoning_effort: dp.ReasoningEffort = "medium",
+    reasoning_effort: dp.ReasoningEffort = "low",
     num_requests: int = 10,
+    api_type: APIType = "responses",
 ) -> dp.Policy[Branch | Fail, FolioZ3AgentIP]:
     budget = dp.BudgetLimit({dp.NUM_REQUESTS: num_requests})
     model = dp.standard_model(
-        model_name, {"reasoning_effort": reasoning_effort}
+        model_name, {"reasoning_effort": reasoning_effort}, api_type=api_type
     )
     return dp.with_budget(budget) @ dp.dfs() & FolioZ3AgentIP(
         check_deduction=dp.few_shot(model=model)
