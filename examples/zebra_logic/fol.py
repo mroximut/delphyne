@@ -435,12 +435,20 @@ class FormalizationParser:
         formulae: list[Formula] = []
         conclusion: list[Formula] = []
 
-        if (cons := formalization_str.constraints) is not None:
+        if (
+            (cons := formalization_str.constraints) is not None
+            and cons != []
+            and cons != ["None"]
+        ):
             formulae = [
                 FOLParser.parse(fml, predicates, constants) for fml in cons
             ]
 
-        if (conc := formalization_str.conclusion) is not None:
+        if (
+            (conc := formalization_str.conclusion) is not None
+            and conc != []
+            and conc != ["None"]
+        ):
             conclusion = [
                 FOLParser.parse(fml, predicates, constants) for fml in conc
             ]

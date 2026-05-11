@@ -13,7 +13,7 @@ from fol import (
     pretty_print,
 )
 
-type StepType = Literal["Constraint", "Conclusion", "All"]
+type StepType = Literal["Constraint", "All"]
 
 _global_z3_solver: z3.Solver | None = None
 _global_z3_context: dict[str, object] | None = None
@@ -109,11 +109,13 @@ def check_implication_in_z3(
     )
     fml_2 = make_formalization(str_formalization_2)
 
+    compare_conclusions = not fml_1.formulae and not fml_2.formulae
+
     forward = Formalization(
         predicates=fml_1.predicates | fml_2.predicates,
         constants=fml_1.constants | fml_2.constants,
-        formulae=fml_1.formulae,
-        conclusion=fml_2.formulae,
+        formulae=fml_1.conclusion if compare_conclusions else fml_1.formulae,
+        conclusion=fml_2.conclusion if compare_conclusions else fml_2.formulae,
     )
     return run_fml_in_z3(forward, "All", timeout_in_seconds=timeout_in_seconds)
 
@@ -183,7 +185,7 @@ def run_fml_in_z3(
             for fml in formalization.formulae:
                 z3_formula = Z3Interpreter.interpret(fml, context)
                 solver.assert_and_track(z3_formula, pretty_print(fml))  # type: ignore
-        if step_type in ("Conclusion", "All"):
+        if step_type == "All":
             for q in formalization.conclusion:
                 z3_conclusion = Z3Interpreter.interpret(Not(q), context)
                 solver.assert_and_track(z3_conclusion, pretty_print(Not(q)))  # type: ignore

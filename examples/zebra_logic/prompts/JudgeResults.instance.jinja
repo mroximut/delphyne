@@ -1,0 +1,30 @@
+Through several strategies, we have obtained the following formalizations for the logic puzzle at hand.
+
+The logic puzzle is:
+{{  query.context | join("\n") }}
+
+Evaluate each candidate formalization for:
+1. Whether every constraint corresponds to a premise, not the conclusion.
+2. Whether the conclusion is formalized with the correct connective and scope.
+3. Whether predicates/constants are consistent across premises and conclusion.
+4. Whether quantifiers match the English statement.
+
+Reject candidates that insert the conclusion into the constraints, use unrelated predicates/constants, or change existential claims into universal claims.
+
+Then either:
+- choose the best candidate and repeat it in the structured output format.
+- or if none are accurate, repair it from scratch using the same structured output format.
+
+The candidate formalizations are:
+
+{{ for verdict in query.results }}
+-----------------------------------
+This strategy produced the following formalization:
+
+{{ verdict.formalization }}
+
+and then refined it to the following formalization:
+
+{{ verdict.refined_formalization }}
+------------------------------------
+{{ endfor }}

@@ -1,0 +1,161 @@
+- demonstration: folio_iterative
+  strategy: folio_iterative_blacklist
+  args:
+    puzzle: |
+      All people who regularly drink coffee are dependent on caffeine.
+      People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+      No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+      Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+      Rina is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+      Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug.
+  tests:
+    - run | success
+  queries:
+    - query: FixPredicatesAndConstants
+      args:
+        context:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
+      answers:
+        - answer:
+            predicates:
+              - RegularlyDrinkCoffee(1)
+              - DependentOnCaffeine(1)
+              - WantsAddiction(1)
+              - Student(1)
+              - AwareThatCaffeineDrug(1)
+            constants: [Rina]
+            constraints: null
+            conclusion: null
+    - query: FormalizeFOLConstraint
+      args:
+        sentences:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+        previous_formalizations: []
+        step_type: Constraint
+        predicates:
+          - RegularlyDrinkCoffee(1)
+          - DependentOnCaffeine(1)
+          - WantsAddiction(1)
+          - Student(1)
+          - AwareThatCaffeineDrug(1)
+        constants: [Rina]
+        context:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
+        blacklist: []
+      answers:
+        - answer:
+            predicates: null
+            constants: null
+            constraints:
+              - ForAll(x, Implies(RegularlyDrinkCoffee(x), DependentOnCaffeine(x)))
+              - ForAll(x, Or(RegularlyDrinkCoffee(x), Not(WantsAddiction(x))))
+            conclusion: null
+    - query: FormalizeFOLConstraint
+      args:
+        sentences:
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+        previous_formalizations:
+          - predicates:
+              - RegularlyDrinkCoffee(1)
+              - DependentOnCaffeine(1)
+              - WantsAddiction(1)
+              - Student(1)
+              - AwareThatCaffeineDrug(1)
+            constants: [Rina]
+            constraints:
+              - ForAll(x, Implies(RegularlyDrinkCoffee(x), DependentOnCaffeine(x)))
+              - ForAll(x, Or(RegularlyDrinkCoffee(x), Not(WantsAddiction(x))))
+            conclusion: null
+        step_type: Constraint
+        predicates:
+          - RegularlyDrinkCoffee(1)
+          - DependentOnCaffeine(1)
+          - WantsAddiction(1)
+          - Student(1)
+          - AwareThatCaffeineDrug(1)
+        constants: [Rina]
+        context:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
+        blacklist: []
+      answers:
+        - answer:
+            predicates: null
+            constants: null
+            constraints:
+              - ForAll(x, Implies(Not(WantsAddiction(x)), AwareThatCaffeineDrug(x)))
+              - Xor(And(Student(Rina), Not(AwareThatCaffeineDrug(Rina))), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+              - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+            conclusion: null
+    - query: FormalizeFOLConstraint
+      args:
+        sentences:
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
+        previous_formalizations:
+          - predicates:
+              - RegularlyDrinkCoffee(1)
+              - DependentOnCaffeine(1)
+              - WantsAddiction(1)
+              - Student(1)
+              - AwareThatCaffeineDrug(1)
+            constants: [Rina]
+            constraints:
+              - ForAll(x, Implies(RegularlyDrinkCoffee(x), DependentOnCaffeine(x)))
+              - ForAll(x, Or(RegularlyDrinkCoffee(x), Not(WantsAddiction(x))))
+            conclusion: null
+          - predicates:
+              - RegularlyDrinkCoffee(1)
+              - DependentOnCaffeine(1)
+              - WantsAddiction(1)
+              - Student(1)
+              - AwareThatCaffeineDrug(1)
+            constants: [Rina]
+            constraints:
+              - ForAll(x, Implies(Not(WantsAddiction(x)), AwareThatCaffeineDrug(x)))
+              - Xor(And(Student(Rina), Not(AwareThatCaffeineDrug(Rina))), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+              - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+            conclusion: null
+        step_type: Conclusion
+        predicates:
+          - RegularlyDrinkCoffee(1)
+          - DependentOnCaffeine(1)
+          - WantsAddiction(1)
+          - Student(1)
+          - AwareThatCaffeineDrug(1)
+        constants: [Rina]
+        context:
+          - All people who regularly drink coffee are dependent on caffeine.
+          - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+          - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+          - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
+          - Rina is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
+        blacklist: []
+      answers:
+        - answer:
+            predicates: null
+            constants: null
+            constraints: null
+            conclusion:
+              - Or(Not(WantsAddiction(Rina)), Not(AwareThatCaffeineDrug(Rina)))
+
+
+            
+    

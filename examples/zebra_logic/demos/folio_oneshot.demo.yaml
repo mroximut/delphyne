@@ -6,7 +6,7 @@
       People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
       No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
       Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
-      Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+      Rina is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
       Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug.
   tests:
     - run | success
@@ -18,7 +18,7 @@
           - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
           - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
           - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she aware that caffeine is a drug.
-          - Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
+          - Rina is either a student who is dependent on caffeine, or she is not a student and not dependent on caffeine.
           - "Conclusion: Rina doesn't want to be addicted to caffeine or is unaware that caffeine is a drug."
         prefix: []
       answers:
@@ -27,7 +27,6 @@
               - RegularlyDrinkCoffee(1)
               - DependentOnCaffeine(1)
               - WantsAddiction(1)
-              - UnawareThatCaffeineDrug(1)
               - Student(1)
               - AwareThatCaffeineDrug(1)
             constants: [Rina]
@@ -35,7 +34,7 @@
               - ForAll(x, Implies(RegularlyDrinkCoffee(x), DependentOnCaffeine(x)))
               - ForAll(x, Or(RegularlyDrinkCoffee(x), Not(WantsAddiction(x))))
               - ForAll(x, Implies(Not(WantsAddiction(x)), AwareThatCaffeineDrug(x)))
-              - Or(And(Student(Rina), UnawareThatCaffeineDrug(Rina)), And(Not(Student(Rina)), AwareThatCaffeineDrug(Rina))))
-              - Or(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+              - Xor(And(Student(Rina), Not(AwareThatCaffeineDrug(Rina))), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+              - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
             conclusion:
-              - Or(Not(WantsAddiction(Rina)), UnawareThatCaffeineDrug(Rina))
+              - Or(Not(WantsAddiction(Rina)), Not(AwareThatCaffeineDrug(Rina)))

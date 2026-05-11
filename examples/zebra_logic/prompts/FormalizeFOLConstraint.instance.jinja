@@ -1,23 +1,40 @@
+The predicates and constants that you will use in the formalization are as follows:
+
+Predicates:
+{{ query.predicates | join("\n") }}
+
+Constants:
+{{ query.constants | join("\n") }}
+
+Do not invent any new predicates or constants. Always use the ones provided above. If you need to use a predicate or constant that is not in the list, you must find a way to express it using the existing predicates and constants.
+
 Previous formalizations are:
 
 {{ query.previous_formalizations | join("\n\n") }}
 
+Try to be in coherence with the previous formalizations. Use the same predicates and constants in a consistent way. Since you will only use the provided predicates and constants, you can leave the `predicates` and `constants` sections in the structured output format `None`.
+
 Current step: {{ query.step_type }}
+{% if query.step_type == "Constraint" %}
+Leave the `conclusion` section as `None`. 
+{% elif query.step_type == "Conclusion" %}
+Leave the `constraints` section as `None`.
+{% endif %}
 
 {% if query.context %}
 The context of the puzzle is:
 {{ query.context | join("\n") }}
 {% endif %}
 
-**Sentence to formalize is below. Only formalize this**
+**Sentences to formalize is below. Only formalize this**
 
-{{ query.sentence }}
+{{ query.sentences | join("\n") }}
 
-**End of sentence**
+**End of sentences**
 
 {% if query.blacklist %}
 **Instructions**
-There were some problems with formalizing the current sentence that you encountered before. Consider the following list containing those.
+There were some problems while formalizing the current sentences that you encountered before. Consider the following list containing those.
 
 {% for item in query.blacklist %}
 {% if item.__class__.__name__ == 'Error' %}
@@ -26,19 +43,15 @@ There were some problems with formalizing the current sentence that you encounte
 {{ item.meta['error'] }}
 - The formalization that caused this error was:
 
-{{ item.meta['formalization_yaml'] | yaml }}
+{{ item.meta['formalization_str'] }}
 
 ---------------------
 {% else %}
 ---------------------
-- You must find a formalization semantically different from: 
-
-{{ item | yaml }}
+- **Following formalization caused problems before! You must find a different formalization semantically different from this:**
+{{ item }}
 
 ---------------------
 {% endif %}
 {% endfor %}
 {% endif %}
-
-Your task is to provide the formalization in the specified YAML
-format.

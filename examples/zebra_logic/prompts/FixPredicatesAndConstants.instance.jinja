@@ -1,0 +1,7 @@
+First, looking at the puzzle just fix a set of predicates and constants that we will use in the formalization. Just fill the `predicates` and `constants` sections in the structured output format. Do not fill the `constraints` and `conclusion` sections yet, leave them `None`. We will fill those in the next steps.
+
+
+{% if query.context %}
+The puzzle is:
+{{ query.context | join("\n") }}
+{% endif %}

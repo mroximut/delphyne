@@ -2,7 +2,7 @@ import ast
 from dataclasses import dataclass
 
 import fol
-from folio_baseline import APIType
+from folio_oneshot import APIType
 from z3_tools import Z3Response, run_fol_in_z3
 
 import delphyne as dp

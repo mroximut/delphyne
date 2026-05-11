@@ -1,12 +1,26 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Sequence, cast
+from typing import Any, Callable, Literal, Never, Sequence, cast
 
-import folio_baseline as fb
+import fol
+from folio_oneshot import (
+    Z3_TIMEOUT,
+    APIType,
+    FormalizeIP,
+    OneShotIP,
+    ReflectFlag,
+    ReflectFlagTag,
+    StyleFlag,
+    StyleFlagTag,
+    Verdict,
+    check_constraints,
+    dummy_fallback_policy,
+    folio_oneshot,
+    folio_oneshot_policy,
+    reflect_policy,
+)
 
 import delphyne as dp
 from delphyne import Branch, Fail, Run, Strategy, strategy
-
-# from delphyne.stdlib.streams import majority_vote
 
 
 @dataclass
@@ -79,12 +93,13 @@ def aggregate[P, T](
 @dataclass
 class FolioAggregateIP:
     oneshot: dp.Policy[
-        Branch | Fail | dp.Flag[fb.ReflectFlag] | dp.Flag[fb.StyleFlag],
-        fb.OneShotIP,
+        Branch | Fail | dp.Flag[ReflectFlag] | dp.Flag[StyleFlag],
+        OneShotIP,
     ]
+    evaluate: dp.Policy[Branch | Fail, FormalizeIP]
 
 
-type AggregationFlagTag = Literal["majority_vote", "favor_unsat"]
+type AggregationFlagTag = Literal["majority_vote", "favor_unsat", "evaluate"]
 type SequenceType = Literal["mixed", "all_normal", "all_normal_reflect"]
 
 
@@ -93,19 +108,63 @@ class AggregationType(dp.FlagQuery[AggregationFlagTag]):
     """Aggregation type flag."""
 
 
+@dataclass
+class JudgeResults(dp.Query[dp.Response[fol.StrFormalization, Never]]):
+    context: list[str]
+    results: Sequence[Verdict]
+    prefix: dp.AnswerPrefix
+
+    __parser__ = dp.structured.response
+
+
+@strategy
+def evaluate_results(
+    puzzle: str,
+    results: Sequence[Verdict],
+) -> Strategy[Branch | Fail, FormalizeIP, Sequence[Verdict]]:
+    yield from dp.ensure(len(results) > 0)
+    response = yield from dp.interact(
+        step=lambda prefix, _: JudgeResults(
+            context=puzzle.strip().split("\n"), results=results, prefix=prefix
+        ).using(lambda p: p.formalize, FormalizeIP),
+        process=lambda refined_formalization, _: check_constraints(
+            refined_formalization, step_type="All"
+        ).using(lambda p: p.check, FormalizeIP),
+    )
+    sol = (
+        True
+        if response.status == "unsat"
+        else False
+        if response.status == "sat"
+        else None
+    )
+    return [
+        Verdict(None, None, response.formalizations, None, sol, sol),
+        *results,
+    ]
+
+
 @strategy
 def folio_aggregate(
     puzzle: str,
 ) -> Strategy[
     Run | Fail | dp.Flag[AggregationType],
     FolioAggregateIP,
-    tuple[bool | None, Sequence[fb.Verdict]],
+    tuple[bool | None, Sequence[Verdict]],
 ]:
+    aggregation_type = yield from dp.get_flag(AggregationType)
     solutions = yield from aggregate(
-        space=fb.folio_oneshot(puzzle=puzzle).using(
+        space=folio_oneshot(puzzle=puzzle).using(
             lambda p: p.oneshot, FolioAggregateIP
         ),
         inner_policy_type=FolioAggregateIP,
+        aggreg=(
+            lambda results: evaluate_results(puzzle, results).using(
+                lambda p: p.evaluate, FolioAggregateIP
+            )
+        )
+        if aggregation_type == "evaluate"
+        else None,
     )
     results = [
         sol.final_solution
@@ -113,8 +172,10 @@ def folio_aggregate(
         if sol.final_solution is not None
     ]
     yield from dp.ensure(len(results) > 0)
-    aggregation_type = yield from dp.get_flag(AggregationType)
-    if aggregation_type == "favor_unsat":
+
+    if aggregation_type == "evaluate":
+        res = solutions[0].final_solution
+    elif aggregation_type == "favor_unsat":
         res = any(results)
     else:
         assert aggregation_type == "majority_vote"
@@ -129,13 +190,14 @@ def folio_aggregate_policy(
     reasoning_effort: dp.ReasoningEffort = "low",
     max_rounds_each: int = 5,
     sequence_type: SequenceType = "mixed",
-    aggregation_type: AggregationFlagTag = "majority_vote",
-    api_type: fb.APIType = "chat_completions",
+    number_of_experts: int = 3,
+    aggregation_type: AggregationFlagTag = "evaluate",
+    api_type: APIType = "chat_completions",
 ) -> dp.Policy[Run | Fail | dp.Flag[AggregationType], FolioAggregateIP]:
     def make_oneshot_policy(
-        style_flag: fb.StyleFlagTag, reflect_flag: fb.ReflectFlagTag
+        style_flag: StyleFlagTag, reflect_flag: ReflectFlagTag
     ):
-        return fb.folio_oneshot_policy(
+        return folio_oneshot_policy(
             model_name=model_name,
             reasoning_effort=reasoning_effort,
             max_rounds=max_rounds_each,
@@ -145,13 +207,13 @@ def folio_aggregate_policy(
         )
 
     oneshot_policy_literally = make_oneshot_policy(
-        style_flag="literally", reflect_flag="only_if_sat"
+        style_flag="literally", reflect_flag="always"
     )
     oneshot_policy_normal = make_oneshot_policy(
-        style_flag="normal", reflect_flag="never"
+        style_flag="normal", reflect_flag="always"
     )
     oneshot_policy_implicitly = make_oneshot_policy(
-        style_flag="implicitly", reflect_flag="only_if_unsat"
+        style_flag="implicitly", reflect_flag="always"
     )
     oneshot_policy_normal_reflect = make_oneshot_policy(
         style_flag="normal", reflect_flag="always"
@@ -164,15 +226,24 @@ def folio_aggregate_policy(
             oneshot_policy_implicitly,
         )
         if sequence_type == "mixed"
-        else (oneshot_policy_normal_reflect,) * 3
+        else (oneshot_policy_normal_reflect,) * number_of_experts
         if sequence_type == "all_normal_reflect"
-        else (oneshot_policy_normal,) * 3
+        else (oneshot_policy_normal,) * number_of_experts
     )
 
-    oneshot = (
-        # majority_vote(are_equivalent=lambda x, y: x[1] == y[1])  # type: ignore
-        dp.take(3) @ dp.sequence(sequence)
-    )
+    oneshot = dp.take(number_of_experts) @ dp.sequence(sequence)
+    evaluate = reflect_policy(
+        model_name=model_name,
+        reasoning_effort=reasoning_effort,
+        temperature=0.0,
+        timeout_in_seconds=Z3_TIMEOUT,
+        max_depth=max_rounds_each,
+        api_type=api_type,
+    ).or_else(dummy_fallback_policy())
+
     return dp.dfs() @ dp.elim_flag(
         AggregationType, aggregation_type
-    ) & FolioAggregateIP(oneshot=oneshot)
+    ) & FolioAggregateIP(
+        oneshot=oneshot,
+        evaluate=evaluate,
+    )

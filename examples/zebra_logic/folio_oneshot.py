@@ -75,10 +75,10 @@ class FormalizeFOLOneShot(dp.Query[dp.Response[fol.StrFormalization, Never]]):
 
 @dataclass
 class Verdict:
-    reflection_flag: ReflectFlagTag
-    style_flag: StyleFlagTag
+    reflection_flag: ReflectFlagTag | None
+    style_flag: StyleFlagTag | None
     formalizations: list[fol.StrFormalization]
-    refined_formalizations: list[fol.StrFormalization]
+    refined_formalizations: list[fol.StrFormalization] | None
     first_solution: bool | None
     final_solution: bool | None
 
@@ -259,7 +259,9 @@ def check_constraints(
             )
 
     response = yield from dp.compute(run_fol_in_z3)(
-        [formalization_str], step_type, timeout_in_seconds=timeout_in_seconds
+        additional_formalizations + [formalization_str],
+        "All" if step_type in ("Conclusion", "All") else "Constraint",
+        timeout_in_seconds=timeout_in_seconds,
     )
     if response.status == "error":
         return dp.Error(
@@ -289,6 +291,48 @@ def check_constraints(
     return response
 
 
+@dp.ensure_compatible(reflect)
+def reflect_policy(
+    model_name: str = "gpt-5-nano",
+    reasoning_effort: dp.ReasoningEffort = "low",
+    temperature: float | None = None,
+    timeout_in_seconds: float = Z3_TIMEOUT,
+    max_depth: int = 5,
+    api_type: APIType = "chat_completions",
+) -> dp.Policy[Branch | Fail, FormalizeIP]:
+    model = dp.standard_model(
+        model_name,
+        {"reasoning_effort": reasoning_effort},
+        api_type=api_type,
+    )
+    pp = dp.take(1) @ dp.few_shot(model, temperature=temperature)
+    ip = FormalizeIP(
+        formalize=pp,
+        check=dp.exec @ elim_z3_compute(timeout_in_seconds) & None,
+    )
+    sp = dp.dfs(max_depth=max_depth)
+    return sp & ip
+
+
+@dp.ensure_compatible(reflect)
+def dummy_fallback_policy() -> dp.Policy[Branch | Fail, FormalizeIP]:
+    return dp.dfs() & FormalizeIP(
+        formalize=dp.answer_with(
+            [
+                dp.Structured(  # type: ignore
+                    {
+                        "constants": None,
+                        "predicates": None,
+                        "constraints": None,
+                        "conclusion": None,
+                    }
+                )
+            ]
+        ),
+        check=dp.exec @ elim_z3_compute(0) & None,
+    )
+
+
 @dp.ensure_compatible(folio_oneshot)
 def folio_oneshot_policy(
     model_name: dp.StandardModelName = "gpt-5-nano",
@@ -309,29 +353,19 @@ def folio_oneshot_policy(
         formalize=dp.take(1) @ dp.few_shot(model, temperature=temperature),
         check=dp.exec @ elim_z3_compute(timeout_in_seconds) & None,
     )
-    fallback_reflect = dp.dfs() & FormalizeIP(
-        formalize=dp.answer_with(
-            [
-                dp.Structured(  # type: ignore
-                    {
-                        "constants": None,
-                        "predicates": None,
-                        "constraints": None,
-                        "conclusion": None,
-                    }
-                )
-            ]
-        ),
-        check=dp.exec @ elim_z3_compute(timeout_in_seconds) & None,
-    )
+    reflect = reflect_policy(
+        model_name=model_name,
+        reasoning_effort=reasoning_effort,
+        temperature=temperature,
+        timeout_in_seconds=timeout_in_seconds,
+        api_type=api_type,
+    ).or_else(dummy_fallback_policy())
 
     return dp.dfs(max_depth=max_rounds) @ dp.elim_flag(
         ReflectFlag, reflect_flag
     ) @ dp.elim_flag(StyleFlag, style_flag) & OneShotIP(
         formalizeIP=formalizeIP,
-        reflect=(dp.dfs(max_depth=max_rounds) & formalizeIP).or_else(
-            fallback_reflect
-        ),
+        reflect=reflect,
     )
 
 
