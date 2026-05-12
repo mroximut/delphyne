@@ -5,7 +5,10 @@ import z3  # type: ignore
 from fol import (
     Const,
     Formalization,
+    FormalizationParseError,
     FormalizationParser,
+    Formula,
+    And,
     Not,
     PredicateDef,
     StrFormalization,
@@ -103,11 +106,29 @@ def check_implication_in_z3(
     timeout_in_seconds: float | None = None,
 ) -> Z3Response:
     _reset_global_predicates_and_constants()
-    fml_1 = make_formalization(str_formalization_1)
-    _set_global_predicates_and_constants(
-        predicates=fml_1.predicates, constants=fml_1.constants
-    )
-    fml_2 = make_formalization(str_formalization_2)
+    try:
+        fml_1 = make_formalization(str_formalization_1)
+        _set_global_predicates_and_constants(
+            predicates=fml_1.predicates, constants=fml_1.constants
+        )
+        fml_2 = make_formalization(str_formalization_2)
+    except FormalizationParseError as e:
+        return Z3Response(
+            formalizations=[*str_formalization_1, *str_formalization_2],
+            status="error",
+            model=None,
+            error=(
+                "Could not parse formalization: "
+                f"bad {e.section} formula {e.formula!r}: {e.error}"
+            ),
+        )
+    except Exception as e:
+        return Z3Response(
+            formalizations=[*str_formalization_1, *str_formalization_2],
+            status="error",
+            model=None,
+            error="Could not parse formalization: " + str(e),
+        )
 
     compare_conclusions = not fml_1.formulae and not fml_2.formulae
 
@@ -132,6 +153,16 @@ def run_fol_in_z3(
         _reset_global_predicates_and_constants()
     try:
         formalization = make_formalization(str_formalizations)
+    except FormalizationParseError as e:
+        return Z3Response(
+            formalizations=str_formalizations,
+            status="error",
+            model=None,
+            error=(
+                "Could not parse formalization: "
+                f"bad {e.section} formula {e.formula!r}: {e.error}"
+            ),
+        )
     except Exception as e:
         return Z3Response(
             formalizations=str_formalizations,
@@ -168,6 +199,10 @@ def run_fml_in_z3(
     solver, context = _get_global_z3_solver()
 
     solver.set(unsat_core=True)  # type: ignore
+
+    def track_name(kind: str, index: int, fml: Formula) -> str:
+        return f"{kind}_{index}: {pretty_print(fml)}"
+
     status = "not_run"
     model_str = None
     error = None
@@ -182,13 +217,24 @@ def run_fml_in_z3(
         for c in new_constants:
             context = Z3Interpreter.register_constant(c, context)
         if step_type in ("Constraint", "All"):
-            for fml in formalization.formulae:
+            for i, fml in enumerate(formalization.formulae):
                 z3_formula = Z3Interpreter.interpret(fml, context)
-                solver.assert_and_track(z3_formula, pretty_print(fml))  # type: ignore
+                solver.assert_and_track(  # type: ignore
+                    z3_formula, track_name("constraint", i, fml)
+                )
         if step_type == "All":
-            for q in formalization.conclusion:
-                z3_conclusion = Z3Interpreter.interpret(Not(q), context)
-                solver.assert_and_track(z3_conclusion, pretty_print(Not(q)))  # type: ignore
+            if formalization.conclusion:
+                conclusion = formalization.conclusion[-1]
+                for q in reversed(formalization.conclusion[:-1]):
+                    conclusion = And(q, conclusion)
+                negated_conclusion = Not(conclusion)
+                z3_conclusion = Z3Interpreter.interpret(
+                    negated_conclusion, context
+                )
+                solver.assert_and_track(  # type: ignore
+                    z3_conclusion,
+                    track_name("conclusion", 0, negated_conclusion),
+                )
 
         result = solver.check()  # type: ignore
         if result == z3.sat:

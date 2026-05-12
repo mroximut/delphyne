@@ -1,7 +1,14 @@
-First, looking at the puzzle just fix a set of predicates and constants that we will use in the formalization. Just fill the `predicates` and `constants` sections in the structured output format. Do not fill the `constraints` and `conclusion` sections yet, leave them `None`. We will fill those in the next steps.
+Looking at the puzzle just fix a set of predicates and constants that we will 
+use for formalizing the puzzle. 
 
+Just fill the `predicates` and `constants` sections 
+in the structured output format. Do not fill the `constraints` and `conclusion` 
+sections yet, leave them `None`. We will fill those in another queries.
 
-{% if query.context %}
+Use only integers in the arity of predicates, do not use variables. For 
+example, "Loves(2)" is a valid predicate definition, but "Loves(x, y)" is not.
+
 The puzzle is:
+
 {{ query.context | join("\n") }}
-{% endif %}
+

@@ -11,11 +11,12 @@ configs_only_ask = [
         reasoning_effort=cast(dp.ReasoningEffort, reasoning_effort),
         temperature=None,
         max_dollar_budget=0.01,
-        seed=0,
+        seed=seed,
         num_requests=reqs,
     )
-    for bench_id in [id for id in fe.SAMPLE_IDS_5_may]
+    for bench_id in fe.VALIDATION_IDS
     for reasoning_effort, reqs in [("low", 10)]
+    for seed in range(3)
 ]
 
 
@@ -24,5 +25,5 @@ if __name__ == "__main__":
         config_class=fe.OnlyAskConfig,
         context=dp.workspace_execution_context(__file__),
         configs=configs_only_ask,
-        output_dir=f"experiments/output_5may/{dp.path_stem(__file__)}",
+        output_dir=f"experiments/output_11may/{dp.path_stem(__file__)}",
     ).run_cli()

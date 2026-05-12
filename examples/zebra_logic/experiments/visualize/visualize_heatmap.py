@@ -1,10 +1,9 @@
 """
-Visualize aggregate strategy performance heatmap for all_normal_reflect sequence.
+Visualize aggregate strategy performance heatmap
+for all_normal_reflect sequence.
 
 Usage:
     python3 visualize_heatmap.py [csv_path]
-
-Default CSV: output_9feb/aggregate_summary.csv
 """
 
 import sys
@@ -14,9 +13,7 @@ import numpy as np
 import pandas as pd
 
 # Read CSV file
-csv_path = (
-    sys.argv[1] if len(sys.argv) > 1 else "output_9feb/aggregate_summary.csv"
-)
+csv_path = sys.argv[1]
 df = pd.read_csv(csv_path)
 
 # Filter for all_normal_reflect sequence type

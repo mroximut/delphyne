@@ -1,0 +1,34 @@
+{% if feedback.label %}
+{{ feedback.label }}
+{% endif %}
+
+
+{% if feedback.meta and feedback.meta.get('error') and feedback.meta.get('formalization_str') %}
+
+Tried to encode the following formalization into Z3:
+
+"""
+{{ feedback.meta['formalization_str'] | yaml }}
+"""
+
+but encountered the following error:
+
+"""
+{{ feedback.meta['error'] }}
+"""
+
+{% elif feedback.meta and feedback.meta.get('error') %}
+
+Encountered the following error:
+
+"""
+{{ feedback.meta['error'] }}
+"""
+{% endif %}
+
+
+{% if feedback.meta %}
+{% for key, value in feedback.meta.items() if key not in ['error', 'formalization_str'] %}
+- {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}

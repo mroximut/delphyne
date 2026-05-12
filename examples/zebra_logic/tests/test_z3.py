@@ -144,6 +144,17 @@ def test_run_fol_in_z3_all_mode_proves_and_refutes_conclusions() -> None:
     assert not_entailed.model is not None
 
 
+def test_run_fol_in_z3_all_mode_allows_repeated_tracked_formulae() -> None:
+    response = run_fol_in_z3(
+        unary_form(["Not(P(a))"], conclusion=["P(a)"]),
+        step_type="All",
+    )
+
+    assert response.status == "sat"
+    assert response.error is None
+    assert response.model is not None
+
+
 def test_folio_oneshot_demo_proves_conclusion() -> None:
     formalizations = demo_answer_formalizations("folio_oneshot.demo.yaml")
 
@@ -237,6 +248,44 @@ def test_run_fol_in_z3_returns_parse_errors_without_raising() -> None:
     assert response.error is not None
     assert response.error.startswith("Could not parse formalization:")
     assert "Unknown symbol in term position" in response.error
+
+
+def test_run_fol_in_z3_parse_error_includes_bad_formula() -> None:
+    bad_formula = "Equals(a, a) -> True"
+    response = run_fol_in_z3(
+        [
+            StrFormalization(
+                predicates=["P(1)"],
+                constants=["a"],
+                constraints=["P(a)", bad_formula],
+                conclusion=None,
+            )
+        ],
+        step_type="Constraint",
+    )
+
+    assert response.status == "error"
+    assert response.error is not None
+    assert "bad constraint formula" in response.error
+    assert repr(bad_formula) in response.error
+
+
+def test_formalization_parser_rejects_predicate_constant_collision() -> None:
+    response = run_fol_in_z3(
+        [
+            StrFormalization(
+                predicates=["SpillsFood(1)", "Peter(1)"],
+                constants=["Peter"],
+                constraints=["SpillsFood(Peter)"],
+            )
+        ],
+        step_type="Constraint",
+    )
+
+    assert response.status == "error"
+    assert response.error is not None
+    assert "Symbol name collision" in response.error
+    assert "'Peter'" in response.error
 
 
 def test_run_fml_in_z3_constraint_and_all_modes_with_ast_input() -> None:

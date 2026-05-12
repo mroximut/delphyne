@@ -1,18 +1,26 @@
 The predicates and constants that you will use in the formalization are as follows:
 
 Predicates:
-{{ query.predicates | join("\n") }}
+{{ query.predicates | yaml }}
 
 Constants:
-{{ query.constants | join("\n") }}
+{{ query.constants | yaml }}
 
-Do not invent any new predicates or constants. Always use the ones provided above. If you need to use a predicate or constant that is not in the list, you must find a way to express it using the existing predicates and constants.
+Do not invent any new predicates or constants. Always use the ones provided 
+above.
 
 Previous formalizations are:
 
-{{ query.previous_formalizations | join("\n\n") }}
+{{ query.previous_formalizations | yaml }}
 
-Try to be in coherence with the previous formalizations. Use the same predicates and constants in a consistent way. Since you will only use the provided predicates and constants, you can leave the `predicates` and `constants` sections in the structured output format `None`.
+Try to be in coherence with the previous formalizations. Use the same 
+predicates and constants in a consistent way. Try to use provided predicates 
+and constants, if you need more predicates or constants, you can add only the 
+new ones to  the `predicates` and `constants` sections in the structured 
+output, provided that they are consistent with the existing ones. If you 
+think that the provided predicates and constants are sufficient, you can leave 
+the `predicates` and `constants` sections in the structured output format as 
+`None`.
 
 Current step: {{ query.step_type }}
 {% if query.step_type == "Constraint" %}
@@ -38,19 +46,24 @@ There were some problems while formalizing the current sentences that you encoun
 
 {% for item in query.blacklist %}
 {% if item.__class__.__name__ == 'Error' %}
+
+{% if item.label %}
+{{ item.label }}
+{% endif %}
+    
+{% if item.meta and item.meta.get('error') and item.meta.get('formalization_str') %}
 --------------------
 - **Following error encountered before! You must avoid this:** 
 {{ item.meta['error'] }}
 - The formalization that caused this error was:
 
 {{ item.meta['formalization_str'] }}
-
----------------------
-{% else %}
+{% endif %}
+{# --------------------- #}
+{# {% else %}
 ---------------------
 - **Following formalization caused problems before! You must find a different formalization semantically different from this:**
-{{ item }}
-
+{{ item | yaml }} #}
 ---------------------
 {% endif %}
 {% endfor %}

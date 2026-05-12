@@ -7,4 +7,4 @@ modules:
   - "folio_standard"
 demo_files:
   - "demos/folio_oneshot.demo.yaml"
-#  - "demos/folio_iterative.demo.yaml"
+  - "demos/folio_iterative.demo.yaml"

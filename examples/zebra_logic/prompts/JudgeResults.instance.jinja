@@ -3,28 +3,47 @@ Through several strategies, we have obtained the following formalizations for th
 The logic puzzle is:
 {{  query.context | join("\n") }}
 
-Evaluate each candidate formalization for:
+Judge each candidate formalization for:
 1. Whether every constraint corresponds to a premise, not the conclusion.
 2. Whether the conclusion is formalized with the correct connective and scope.
 3. Whether predicates/constants are consistent across premises and conclusion.
 4. Whether quantifiers match the English statement.
+5. Whether it uses `Equals` for identity statements like "Alias", "Another name for", "Same as", etc. (it should use `Equals`for these)
+6. Whether generic plural or class statements are represented as universally
+   quantified rules, not as facts about constants named after the class.
+7. Whether any needed bridge that is clearly stated or presupposed by the
+   English is missing, such as identity, type/category, location, exclusivity,
+   or transitivity.
+8. Whether the candidate copied the conclusion, or a formula equivalent to the
+   conclusion, into the constraints.
+9. Whether a conditional conclusion was incorrectly split into separate
+   independent conclusions for the antecedent and consequent.
+10. Whether "either or" are incorrectly formalized as inclusive-or (Or) instead of exclusive-or (Xor).
 
-Reject candidates that insert the conclusion into the constraints, use unrelated predicates/constants, or change existential claims into universal claims.
-
-Then either:
-- choose the best candidate and repeat it in the structured output format.
-- or if none are accurate, repair it from scratch using the same structured output format.
+**Then, choose the best candidate and provide the number of strategy that  created this candidate and whether it is an inital formalization or a refined one.**
 
 The candidate formalizations are:
 
-{{ for verdict in query.results }}
+{% for verdict in query.results %}
 -----------------------------------
-This strategy produced the following formalization:
+Strategy with index {{ loop.index }} produced the following initial formalization:
 
-{{ verdict.formalization }}
+{{ verdict.formalizations | yaml }}
 
-and then refined it to the following formalization:
-
-{{ verdict.refined_formalization }}
+{% if verdict.refined_formalizations %}
+It then refined it into the following formalization:
+{{ verdict.refined_formalizations | yaml }}
+{% else %}
+It did not produce a refined formalization.
+{% endif %}
 ------------------------------------
-{{ endfor }}
+{% endfor %}
+
+Answer using the provided structured output format with fields `strategy_index` 
+(1-indexed) and `formalization_type` (either "initial" or "refined").
+Fill in these fields based on which candidate you judge to be the best 
+formalization for the puzzle, and provide a brief explanation of your choice in 
+the `reason` field.
+
+Make sure that the strategy index and the formalization type is correct. Double 
+check the index. The reason and the index should be consistent with each other.

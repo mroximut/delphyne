@@ -109,12 +109,33 @@ type Formula = (
 )
 
 
+def _combine_lists(
+    a: list[str] | None, b: list[str] | None
+) -> list[str] | None:
+    if a is None and b is None:
+        return None
+    if a is None:
+        return b
+    if b is None:
+        return a
+    deduplicated = list(dict.fromkeys(a + b))
+    return deduplicated
+
+
 @dataclass
 class StrFormalization:
     predicates: list[str] | None = None
     constants: list[str] | None = None
     constraints: list[str] | None = None
     conclusion: list[str] | None = None
+
+    def __add__(self, other: "StrFormalization") -> "StrFormalization":
+        return StrFormalization(
+            predicates=_combine_lists(self.predicates, other.predicates),
+            constants=_combine_lists(self.constants, other.constants),
+            constraints=_combine_lists(self.constraints, other.constraints),
+            conclusion=_combine_lists(self.conclusion, other.conclusion),
+        )
 
 
 @dataclass
@@ -380,6 +401,18 @@ class FOLParser:
         raise ValueError(f"Unsupported term node: {_seg(node)}")
 
 
+class FormalizationParseError(ValueError):
+    """Error raised when a specific formula in a formalization cannot parse."""
+
+    def __init__(self, formula: str, section: str, error: Exception):
+        self.formula = formula
+        self.section = section
+        self.error = error
+        super().__init__(
+            f"Could not parse {section} formula {formula!r}: {error}"
+        )
+
+
 class FormalizationParser:
     @staticmethod
     def parse_multiple(
@@ -406,27 +439,53 @@ class FormalizationParser:
         # Parse predicate declarations of the form "Name(Arity)"
         new_predicates: set[PredicateDef] = set()
         new_constants: set[Const] = set()
+        previous_predicates_by_name = {p.name: p for p in previous_predicates}
+        previous_constant_names = {c.name for c in previous_constants}
+        new_predicates_by_name: dict[str, PredicateDef] = {}
 
         if formalization_str.predicates is not None:
             for p in formalization_str.predicates:
                 p_name, p_arity_raw = p.split("(")
                 p_arity = int(p_arity_raw.rstrip(")"))  # remove trailing ')'
-                for prev in previous_predicates:
-                    if prev.name == p_name and prev.arity != p_arity:
+                if p_name in previous_constant_names:
+                    raise ValueError(
+                        f"Symbol name collision: '{p_name}' is already "
+                        "declared as a constant and cannot also be declared "
+                        f"as predicate '{p}'."
+                    )
+                prev = previous_predicates_by_name.get(p_name)
+                if prev is not None:
+                    if prev.arity != p_arity:
                         raise ValueError(
                             f"Predicate '{p_name}' already declared with "
                             f"arity {prev.arity}, got conflicting arity "
                             f"{p_arity} in declaration '{p}'"
                         )
-                    elif prev.name == p_name:
-                        break
-                else:
-                    new_predicates.add(
-                        PredicateDef(name=p_name, arity=p_arity)
-                    )
+                    continue
+                new = new_predicates_by_name.get(p_name)
+                if new is not None:
+                    if new.arity != p_arity:
+                        raise ValueError(
+                            f"Predicate '{p_name}' declared more than once "
+                            f"with conflicting arities {new.arity} and "
+                            f"{p_arity}."
+                        )
+                    continue
+                predicate_def = PredicateDef(name=p_name, arity=p_arity)
+                new_predicates.add(predicate_def)
+                new_predicates_by_name[p_name] = predicate_def
 
         if formalization_str.constants is not None:
             for c in formalization_str.constants:
+                if (
+                    c in previous_predicates_by_name
+                    or c in new_predicates_by_name
+                ):
+                    raise ValueError(
+                        f"Symbol name collision: '{c}' is already declared "
+                        "as a predicate and cannot also be declared as a "
+                        "constant."
+                    )
                 if c not in [const.name for const in previous_constants]:
                     new_constants.add(Const(name=c))
 
@@ -440,18 +499,28 @@ class FormalizationParser:
             and cons != []
             and cons != ["None"]
         ):
-            formulae = [
-                FOLParser.parse(fml, predicates, constants) for fml in cons
-            ]
+            formulae = []
+            for fml in cons:
+                try:
+                    formulae.append(
+                        FOLParser.parse(fml, predicates, constants)
+                    )
+                except Exception as e:
+                    raise FormalizationParseError(fml, "constraint", e) from e
 
         if (
             (conc := formalization_str.conclusion) is not None
             and conc != []
             and conc != ["None"]
         ):
-            conclusion = [
-                FOLParser.parse(fml, predicates, constants) for fml in conc
-            ]
+            conclusion = []
+            for fml in conc:
+                try:
+                    conclusion.append(
+                        FOLParser.parse(fml, predicates, constants)
+                    )
+                except Exception as e:
+                    raise FormalizationParseError(fml, "conclusion", e) from e
 
         return Formalization(
             predicates=predicates,

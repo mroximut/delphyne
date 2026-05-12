@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Literal, Never, Sequence
 
 import fol
-from z3_tools import Z3Response, check_implication_in_z3, run_fol_in_z3
+from z3_tools import Z3Response, run_fol_in_z3
 
 import delphyne as dp
 from delphyne import Branch, Compute, Fail, Strategy, strategy
@@ -33,7 +33,7 @@ class OneShotIP:
 @dataclass
 class ReflectIfSat(dp.Query[dp.Response[fol.StrFormalization, Never]]):
     sentences: list[str]
-    formalizations: list[fol.StrFormalization]
+    formalization: fol.StrFormalization
     model: str
     prefix: dp.AnswerPrefix
 
@@ -43,7 +43,7 @@ class ReflectIfSat(dp.Query[dp.Response[fol.StrFormalization, Never]]):
 @dataclass
 class ReflectIfUnsat(dp.Query[dp.Response[fol.StrFormalization, Never]]):
     sentences: list[str]
-    formalizations: list[fol.StrFormalization]
+    formalization: fol.StrFormalization
     unsat_core: str
     prefix: dp.AnswerPrefix
 
@@ -75,12 +75,42 @@ class FormalizeFOLOneShot(dp.Query[dp.Response[fol.StrFormalization, Never]]):
 
 @dataclass
 class Verdict:
-    reflection_flag: ReflectFlagTag | None
-    style_flag: StyleFlagTag | None
+    reflection_flag: ReflectFlagTag
+    style_flag: StyleFlagTag
     formalizations: list[fol.StrFormalization]
     refined_formalizations: list[fol.StrFormalization] | None
     first_solution: bool | None
     final_solution: bool | None
+    judgement_solution: bool | None = None
+
+
+def obviously_invalid_refinement(
+    original: fol.StrFormalization,
+    refined: fol.StrFormalization,
+) -> dp.Error | None:
+    def to_set(lst: list[str] | None) -> set[str]:
+        if not lst:
+            return set()
+        return set([x.strip() for x in lst])
+
+    set_refined_conclusion = to_set(refined.conclusion)
+    set_refined_constraints = to_set(refined.constraints)
+    mixed = (
+        (set_refined_conclusion & to_set(original.constraints))
+        | (set_refined_conclusion & set_refined_constraints)
+        | (set_refined_constraints & to_set(original.conclusion))
+    )
+
+    if mixed:
+        return dp.Error(
+            label="invalid_refinement",
+            meta={
+                "error": "The refinement is invalid because it mixes"
+                + " conclusion formulas with premise constraints.",
+                "mixed_formulas": list(mixed),
+            },
+        )
+    return None
 
 
 @strategy
@@ -90,17 +120,29 @@ def reflect(
     formalizations: list[fol.StrFormalization],
     model_or_unsat_core: str,
 ) -> Strategy[Branch | Fail, FormalizeIP, Z3Response]:
-    query = ReflectIfSat if sat_or_unsat == "sat" else ReflectIfUnsat
+    Query = ReflectIfSat if sat_or_unsat == "sat" else ReflectIfUnsat
+    formalization = sum(formalizations, fol.StrFormalization())
+
+    def check(refined_formalization: fol.StrFormalization):
+        if (
+            e := obviously_invalid_refinement(
+                formalization, refined_formalization
+            )
+        ) is not None:
+            return dp.const_space(e)
+        else:
+            return check_constraints(
+                refined_formalization, step_type="All"
+            ).using(lambda p: p.check, FormalizeIP)
+
     response = yield from dp.interact(
-        step=lambda prefix, _: query(
+        step=lambda prefix, _: Query(
             sentences,
-            formalizations,
+            formalization,
             model_or_unsat_core,
             prefix,
         ).using(lambda p: p.formalize, FormalizeIP),
-        process=lambda refined_formalization, _: check_constraints(
-            refined_formalization, step_type="All"
-        ).using(lambda p: p.check, FormalizeIP),
+        process=lambda refined_formalization, _: check(refined_formalization),
     )
     return response
 
@@ -207,41 +249,41 @@ def check_constraints(
     # implies formalization_str
     # and additional + formalization_str implies item. If so, they are
     # equivalent and we should return an error.
-    if blacklist and step_type == "Constraint":
-        new_formalizations = additional_formalizations + [formalization_str]
-        for black in blacklist:
-            if isinstance(black, dp.Error):
-                continue
-            else:
-                # Check for equivalence between formalization_str and item
-                old_formalizations = additional_formalizations + [black]
-                new_implies_old = yield from dp.compute(
-                    check_implication_in_z3
-                )(
-                    new_formalizations,
-                    [black],
-                    timeout_in_seconds=timeout_in_seconds,
-                )
-                old_implies_new = yield from dp.compute(
-                    check_implication_in_z3
-                )(
-                    old_formalizations,
-                    [formalization_str],
-                    timeout_in_seconds=timeout_in_seconds,
-                )
-                if (
-                    new_implies_old.status == "unsat"
-                    and old_implies_new.status == "unsat"
-                ):
-                    return dp.Error(
-                        label="fol_equivalent_formalization",
-                        meta={
-                            "error": "The formalization is equivalent to "
-                            + "a blacklisted formalization.",
-                            "formalization_str": formalization_str,
-                            "blacklisted_item": black,
-                        },
-                    )
+    # if blacklist and step_type == "Constraint":
+    #     new_formalizations = additional_formalizations + [formalization_str]
+    #     for black in blacklist:
+    #         if isinstance(black, dp.Error):
+    #             continue
+    #         else:
+    #             # Check for equivalence between formalization_str and item
+    #             old_formalizations = additional_formalizations + [black]
+    #             new_implies_old = yield from dp.compute(
+    #                 check_implication_in_z3
+    #             )(
+    #                 new_formalizations,
+    #                 [black],
+    #                 timeout_in_seconds=timeout_in_seconds,
+    #             )
+    #             old_implies_new = yield from dp.compute(
+    #                 check_implication_in_z3
+    #             )(
+    #                 old_formalizations,
+    #                 [formalization_str],
+    #                 timeout_in_seconds=timeout_in_seconds,
+    #             )
+    #             if (
+    #                 new_implies_old.status == "unsat"
+    #                 and old_implies_new.status == "unsat"
+    #             ):
+    #                 return dp.Error(
+    #                     label="fol_equivalent_formalization",
+    #                     meta={
+    #                         "error": "The formalization is equivalent to "
+    #                         + "a blacklisted formalization.",
+    #                         "formalization_str": formalization_str,
+    #                         "blacklisted_item": black,
+    #                     },
+    #                 )
 
     if check_consistency_of_premises_if_all and step_type == "All":
         consistency_response = yield from dp.compute(run_fol_in_z3)(

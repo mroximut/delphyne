@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Never
 
 import fol
 from folio_oneshot import (
@@ -42,10 +42,13 @@ class FormalizeFOLConstraint(dp.Query[fol.StrFormalization]):
 
 
 @dataclass
-class FixPredicatesAndConstants(dp.Query[fol.StrFormalization]):
+class FixPredicatesAndConstants(
+    dp.Query[dp.Response[fol.StrFormalization, Never]]
+):
     context: list[str]
+    prefix: dp.AnswerPrefix
 
-    __parser__ = dp.structured
+    __parser__ = dp.structured.response
 
 
 @dataclass
@@ -69,6 +72,11 @@ def formalize_single_blacklist(
 ]:
     if blacklist is None:
         blacklist = []
+    previous_formalizations = (
+        [sum(previous_formalizations, fol.StrFormalization())]
+        if previous_formalizations
+        else []
+    )
     formalization_str = yield from dp.branch(
         FormalizeFOLConstraint(
             sentences=sentences,
@@ -80,8 +88,9 @@ def formalize_single_blacklist(
             context=context,
         ).using(lambda p: p.formalize, FormalizeIP)
     )
-    formalization_str.predicates = predicates
-    formalization_str.constants = constants
+    formalization_str += fol.StrFormalization(
+        predicates=predicates, constants=constants
+    )
 
     response = yield from dp.run(
         check_constraints(
@@ -91,12 +100,16 @@ def formalize_single_blacklist(
             blacklist=blacklist,
         ).using(lambda p: p.check, FormalizeIP)
     )
-    if isinstance(response, Z3Response):
+    if isinstance(response, Z3Response) and response.formalizations:
         to_blacklist = response.formalizations[-1]
-    else:
+    elif isinstance(response, dp.Error):
         to_blacklist = response
+    else:
+        to_blacklist = None
 
-    return response, [*blacklist, to_blacklist]
+    return response, (
+        [*blacklist, to_blacklist] if to_blacklist is not None else blacklist
+    )
 
 
 @strategy
@@ -108,22 +121,34 @@ def folio_iterative_blacklist(
     sentences = puzzle.strip().split("\n")
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
 
-    predicates_and_constants = yield from dp.branch(
-        FixPredicatesAndConstants(context=sentences).using(
-            lambda p: p.fix, FolioIterativeIP
-        )
+    def check_fix_predicates_and_constants(
+        predicates_and_constants: fol.StrFormalization,
+    ) -> tuple[list[str], list[str]] | dp.Error:
+        predicates = predicates_and_constants.predicates or []
+        constants = predicates_and_constants.constants or []
+        if not predicates:
+            return dp.Error(label="predicates are empty")
+        try:
+            fol.FormalizationParser.parse_multiple([predicates_and_constants])
+        except Exception as e:
+            return dp.Error(
+                label="invalid predicates or constants", meta={"error": str(e)}
+            )
+        return predicates, constants
+
+    predicates, constants = yield from dp.interact(
+        step=lambda prefix, _: FixPredicatesAndConstants(
+            context=sentences,
+            prefix=prefix,
+        ).using(lambda p: p.fix, FolioIterativeIP),
+        process=lambda fml, _: dp.const_space(
+            check_fix_predicates_and_constants(fml)
+        ),
     )
-    predicates = predicates_and_constants.predicates
-    constants = predicates_and_constants.constants
-    if predicates is None or constants is None:
-        yield from dp.fail(
-            "Model did not provide predicates and constants"
-            " in the expected format."
-        )
 
     solution: bool | None = None
     response: Z3Response | None = None
-    # we split the constraints into 3 chunks
+    # we split the constraints into n chunks
     constraints = sentences[:-1]
     conclusion = [sentences[-1]]
     flag = yield from dp.get_flag(NumberOfChunksFlag)
@@ -200,8 +225,15 @@ def are_equivalent(
     fml_1: fol.StrFormalization, fml_2: fol.StrFormalization
 ) -> bool:
     if (
-        fml_1.constraints == fml_2.constraints
-        or fml_1.conclusion == fml_2.conclusion
+        fml_1.constraints
+        and fml_2.constraints
+        and fml_1.constraints == fml_2.constraints
+    ) or (
+        not fml_1.constraints
+        and not fml_2.constraints
+        and fml_1.conclusion
+        and fml_2.conclusion
+        and fml_1.conclusion == fml_2.conclusion
     ):
         return True
     try:
@@ -256,7 +288,7 @@ def formalize_single_policy(
 def folio_iterative_blacklist_policy(
     max_restarts: int = 2,
     max_requests_per_attempt: int = 30,
-    max_retries_per_chunk: int = 5,
+    max_retries_per_chunk: int = 3,
     model_name: str = "gpt-5-nano",
     reasoning_effort: dp.ReasoningEffort = "low",
     reflect_if_sat: bool = True,
@@ -278,7 +310,7 @@ def folio_iterative_blacklist_policy(
             api_type=api_type,
         )
 
-    def make():
+    def make(max_retries_per_chunk: int):
         per_attempt = dp.BudgetLimit(
             {dp.NUM_REQUESTS: max_requests_per_attempt}
         )
@@ -296,7 +328,7 @@ def folio_iterative_blacklist_policy(
             if reflect_if_sat
             else fallback_reflect
         )
-        fix = dp.take(1) @ dp.few_shot(
+        fix = dp.take(max_retries_per_chunk // 2) @ dp.few_shot(
             dp.standard_model(
                 model_name,
                 {"reasoning_effort": reasoning_effort},
@@ -311,4 +343,7 @@ def folio_iterative_blacklist_policy(
             sp @ dp.elim_flag(NumberOfChunksFlag, str(number_of_chunks)) & ip
         )
 
-    return dp.sequence(make() for _ in range(max_restarts))
+    return dp.sequence(
+        make(max_retries_per_chunk * (restart + 1))
+        for restart in range(max_restarts)
+    )

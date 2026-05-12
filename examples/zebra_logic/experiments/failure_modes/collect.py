@@ -81,8 +81,8 @@ def collect_failure_modes(
 
 
 if __name__ == "__main__":
-    csv_file = "merged_results_all_normal_reflect_majority_vote_always.csv"
-    experiment_dir = "output_5may/aggregate_experiment/"
+    csv_file = "merged_results_all_normal_reflect_judge_always.csv"
+    experiment_dir = "output_12may/aggregate_experiment/"
     output_dir = None
 
     collect_failure_modes(csv_file, experiment_dir, output_dir)

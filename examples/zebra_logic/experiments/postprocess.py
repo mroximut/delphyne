@@ -25,21 +25,10 @@ class Verdict(BaseModel):
     reflection_flag: Literal["always", "never", "only_if_sat", "only_if_unsat"]
     style_flag: Literal["normal", "literally", "implicitly"]
     formalizations: list[StrFormalization]
-    refined_formalizations: list[StrFormalization]
+    refined_formalizations: list[StrFormalization] | None
     first_solution: bool | None
     final_solution: bool | None
-
-
-# ONESHOT = "output_27jan/oneshot_experiment"
-# NAIVE = "output_20jan/iterative_naive_experiment"
-# BLACKLIST = "output_27jan/iterative_blacklist_experiment"
-# ONESHOT_REFLECT = "output_27jan_reflect/oneshot_experiment"
-BLACKLIST_REFLECT = "output_9feb/iterative_blacklist_experiment"
-AGGREGATE = "output_9feb/aggregate_experiment"
-
-ONLY_ASK = "output_3mar/only_ask_experiment"
-FORMALIZATION_AGENT = "output_3mar/formalization_agent_experiment"
-Z3_AGENT = "output_3mar/z3_agent_experiment"
+    judgement_solution: bool | None = None
 
 
 def _any(
@@ -79,13 +68,15 @@ def _maj(
 def process_output_aggregate(
     returned: tuple[bool | None, Sequence[Verdict]],
     sequence_type: Literal["mixed", "all_normal_reflect"],
-    aggregation_type: Literal["majority_vote", "favor_unsat"],
+    aggregation_type: Literal["majority_vote", "favor_unsat", "judge"],
     reflection_type: Literal[
         "mixed", "always", "never", "only_if_sat", "only_if_unsat"
     ],
 ) -> bool | None:
     _, verdicts = returned
     types = (aggregation_type, sequence_type, reflection_type)
+    if types in [("judge", "all_normal_reflect", "always")]:
+        return verdicts[0].judgement_solution if len(verdicts) > 0 else None
     if types in [
         ("majority_vote", "mixed", "mixed"),
         ("majority_vote", "all_normal_reflect", "always"),
@@ -303,15 +294,7 @@ def process_results(
 def main_aggregate(experiment_dir: str):
     oneshot_dicts: list[dict[str, Any]] = []
     aggregate = experiment_dir + "/aggregate_experiment"
-
-    # oneshot_dicts += [
-    #     process_results(
-    #         BLACKLIST_REFLECT,
-    #         "blacklist",
-    #         oneshot_model_type="iterative_blacklist",
-    #         oneshot_reflect_type="only_if_sat",
-    #     )
-    # ]
+    blacklist = experiment_dir + "/iterative_experiment"
 
     aggregate_dicts = [
         process_results(
@@ -322,28 +305,32 @@ def main_aggregate(experiment_dir: str):
             reflection_type=reflection_type,
             save_name=f"merged_results_{sequence_type}_{aggregation_type}_{reflection_type}.csv",
         )
-        for sequence_type in ["mixed", "all_normal_reflect"]
-        for aggregation_type in ["majority_vote", "favor_unsat"]
-        for reflection_type in [
-            ("mixed" if sequence_type == "mixed" else "always"),
-            "never",
-            "only_if_sat",
-        ]
+        for sequence_type in ["all_normal_reflect"]  # , "mixed"]
+        for aggregation_type in ["majority_vote", "favor_unsat", "judge"]
+        for reflection_type in (
+            [
+                ("always" if sequence_type != "mixed" else "mixed"),
+                "never",
+                "only_if_sat",
+            ]
+            if aggregation_type != "judge"
+            else ["always"]
+        )
     ]
 
-    oneshot_dicts += [
-        process_results(
-            aggregate,
-            "oneshot",
-            sequence_type="mixed",
-            reflection_type="mixed",
-            oneshot_model_type=model_type,
-            oneshot_reflect_type=reflect,
-            save_name=f"merged_results_oneshot_{model_type}_{reflect}.csv",
-        )
-        for model_type in ["literal", "implicitly"]
-        for reflect in ["always", "never"]
-    ]
+    # oneshot_dicts += [
+    #     process_results(
+    #         aggregate,
+    #         "oneshot",
+    #         sequence_type="mixed",
+    #         reflection_type="mixed",
+    #         oneshot_model_type=model_type,
+    #         oneshot_reflect_type=reflect,
+    #         save_name=f"merged_results_oneshot_{model_type}_{reflect}.csv",
+    #     )
+    #     for model_type in ["literal", "implicitly"]
+    #     for reflect in ["always", "never"]
+    # ]
 
     oneshot_dicts += [
         process_results(
@@ -356,6 +343,15 @@ def main_aggregate(experiment_dir: str):
             save_name=f"merged_results_oneshot_normal_{reflect}.csv",
         )
         for reflect in ["always", "only_if_sat", "never"]
+    ]
+
+    oneshot_dicts += [
+        process_results(
+            blacklist,
+            "blacklist",
+            oneshot_model_type="iterative_blacklist",
+            oneshot_reflect_type="only_if_sat",
+        )
     ]
 
     pd.DataFrame(aggregate_dicts).to_csv(
@@ -403,6 +399,6 @@ def main_agents(experiment_dir: str):
 
 
 if __name__ == "__main__":
-    main_aggregate("output_5may")
-    # main_agents("output_5may")
+    main_aggregate("output_12may_medium")
+    # main_agents("output_11may")
     pass
