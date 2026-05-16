@@ -248,9 +248,9 @@ def folio_aggregate_policy(
             oneshot_policy_implicitly,
         )
         if sequence_type == "mixed"
-        else (oneshot_policy_normal_reflect,) * (number_of_experts + 1)
+        else (oneshot_policy_normal_reflect,) * (number_of_experts)
         if sequence_type == "all_normal_reflect"
-        else (oneshot_policy_normal,) * (number_of_experts + 1)
+        else (oneshot_policy_normal,) * (number_of_experts)
     )
 
     oneshot = dp.take(number_of_experts) @ dp.sequence(sequence)

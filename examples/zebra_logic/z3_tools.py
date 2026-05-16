@@ -3,12 +3,12 @@ from typing import Literal
 
 import z3  # type: ignore
 from fol import (
+    And,
     Const,
     Formalization,
     FormalizationParseError,
     FormalizationParser,
     Formula,
-    And,
     Not,
     PredicateDef,
     StrFormalization,
@@ -82,9 +82,7 @@ class Z3Response:
     """
 
     formalizations: list[StrFormalization]
-    status: Literal[
-        "sat", "unsat", "unknown", "error", "not_run", "nop", "equivalent"
-    ]
+    status: Literal["sat", "unsat", "unknown", "error", "not_run", "nop"]
     model: str | None
     error: str | None
 

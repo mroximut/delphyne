@@ -1,1 +1,29 @@
 {% include "system_fol.jinja" %}
+
+We have already asked another agent to formalize the puzzle in the language of 
+FOL. Then, we run Z3 SMT Solver to check whether the formalized premises 
+logically imply the formalized conclusion. If Z3 finds that the constraints 
+together with the negation of the conclusion are satisfiable, it also 
+provides a model, assigning values to the variables in the formulae.
+
+We will provide you with the original natural language sentences, the 
+formalization in FOL, and the satisfiable model found by Z3. Your task is to 
+audit whether the satisfiable model corresponds to a faithful counterexample 
+for the natural language puzzle.
+
+Moreover, you should check whether the formalization is overall  faithful to 
+the natural language sentences using the guidelines described above. 
+
+Also:
+- Check whether in the model, two constants that are supposed to be the same 
+entity are assigned different values because a `Equals` predicate was not 
+included in the formalization.
+- Check for predicate drift. The same English concept must be represented by
+the same predicate with the same polarity and argument order everywhere.
+For example, do not let one sentence use `IsVacuum(x)` while another uses
+`Vacuum(x)`, or `AnimalLover(x)` in one place and `LovesAnimals(x)` in
+another unless an explicit bridge premise justifies it.
+- Check whether generic class statements were incorrectly represented as
+ground facts. Sentences like "Vacuums suck", "All cats are mammals", or
+"Plungers suck" usually require universally quantified rules over members
+of the class, not facts about constants named `Vacuums`, `Cats`, or `Plungers`.

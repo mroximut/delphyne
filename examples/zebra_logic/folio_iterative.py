@@ -97,7 +97,6 @@ def formalize_single_blacklist(
             formalization_str,
             step_type,
             additional_formalizations=previous_formalizations,
-            blacklist=blacklist,
         ).using(lambda p: p.check, FormalizeIP)
     )
     if isinstance(response, Z3Response) and response.formalizations:
@@ -146,7 +145,6 @@ def folio_iterative_blacklist(
         ),
     )
 
-    solution: bool | None = None
     response: Z3Response | None = None
     # we split the constraints into n chunks
     constraints = sentences[:-1]
@@ -216,6 +214,7 @@ def folio_iterative_blacklist(
         case "unsat":
             solution = True
         case _:
+            yield from dp.fail(label=response.status, message=response.error)
             solution = None
 
     return solution
@@ -224,6 +223,8 @@ def folio_iterative_blacklist(
 def are_equivalent(
     fml_1: fol.StrFormalization, fml_2: fol.StrFormalization
 ) -> bool:
+    if fml_1 == fol.StrFormalization() or fml_2 == fol.StrFormalization():
+        return False
     if (
         fml_1.constraints
         and fml_2.constraints

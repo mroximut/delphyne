@@ -67,33 +67,37 @@ def _maj(
 
 def process_output_aggregate(
     returned: tuple[bool | None, Sequence[Verdict]],
-    sequence_type: Literal["mixed", "all_normal_reflect"],
+    sequence_type: Literal["mixed", "all_normal", "all_normal_reflect"],
     aggregation_type: Literal["majority_vote", "favor_unsat", "judge"],
     reflection_type: Literal[
         "mixed", "always", "never", "only_if_sat", "only_if_unsat"
     ],
 ) -> bool | None:
-    _, verdicts = returned
+    strategy_result, verdicts = returned
     types = (aggregation_type, sequence_type, reflection_type)
-    if types in [("judge", "all_normal_reflect", "always")]:
-        return verdicts[0].judgement_solution if len(verdicts) > 0 else None
+    if aggregation_type == "judge" and reflection_type == "always":
+        return strategy_result
     if types in [
         ("majority_vote", "mixed", "mixed"),
+        ("majority_vote", "all_normal", "always"),
         ("majority_vote", "all_normal_reflect", "always"),
     ]:
         return _maj(verdicts, "final")  # res
     if types in [
         ("favor_unsat", "mixed", "mixed"),
+        ("favor_unsat", "all_normal", "always"),
         ("favor_unsat", "all_normal_reflect", "always"),
     ]:
         return _any(verdicts, "final")
     if types in [
         ("majority_vote", "mixed", "never"),
+        ("majority_vote", "all_normal", "never"),
         ("majority_vote", "all_normal_reflect", "never"),
     ]:
         return _maj(verdicts, "first")
     if types in [
         ("favor_unsat", "mixed", "never"),
+        ("favor_unsat", "all_normal", "never"),
         ("favor_unsat", "all_normal_reflect", "never"),
     ]:
         return _any(verdicts, "first")
@@ -111,6 +115,7 @@ def process_output_aggregate(
         results = prelims + reflects
         if types in [
             ("majority_vote", "mixed", "only_if_sat"),
+            ("majority_vote", "all_normal", "only_if_sat"),
             ("majority_vote", "all_normal_reflect", "only_if_sat"),
         ]:
             return (
@@ -120,6 +125,7 @@ def process_output_aggregate(
             )
         if types in [
             ("favor_unsat", "mixed", "only_if_sat"),
+            ("favor_unsat", "all_normal", "only_if_sat"),
             ("favor_unsat", "all_normal_reflect", "only_if_sat"),
         ]:
             return any(r for r in results) if len(results) > 0 else None
@@ -263,8 +269,9 @@ def process_results(
         ]
     correct = merged_df["correct"].sum()
     total = len(merged_df["ground_truth"].dropna())
+    pct = f"{correct / total:.2%}" if total else "n/a"
     print(
-        f"Correct: {correct}/{total} ({correct / total:.2%}) for "
+        f"Correct: {correct}/{total} ({pct}) for "
         f"{experiment_dir}, strategy: {strategy_type}"
         + (
             f", sequence_type: {sequence_type}, aggregation_type:"
@@ -296,6 +303,10 @@ def main_aggregate(experiment_dir: str):
     aggregate = experiment_dir + "/aggregate_experiment"
     blacklist = experiment_dir + "/iterative_experiment"
 
+    sequence_types = [
+        "all_normal_reflect",
+    ]
+
     aggregate_dicts = [
         process_results(
             aggregate,
@@ -305,7 +316,7 @@ def main_aggregate(experiment_dir: str):
             reflection_type=reflection_type,
             save_name=f"merged_results_{sequence_type}_{aggregation_type}_{reflection_type}.csv",
         )
-        for sequence_type in ["all_normal_reflect"]  # , "mixed"]
+        for sequence_type in sequence_types
         for aggregation_type in ["majority_vote", "favor_unsat", "judge"]
         for reflection_type in (
             [
@@ -336,12 +347,17 @@ def main_aggregate(experiment_dir: str):
         process_results(
             aggregate,
             "oneshot",
-            sequence_type="all_normal_reflect",
-            reflection_type="always",
+            sequence_type=sequence_type,
+            reflection_type=(
+                "always" if sequence_type != "mixed" else "mixed"
+            ),
             oneshot_model_type="normal",
             oneshot_reflect_type=reflect,
-            save_name=f"merged_results_oneshot_normal_{reflect}.csv",
+            save_name=(
+                f"merged_results_oneshot_{sequence_type}_normal_{reflect}.csv"
+            ),
         )
+        for sequence_type in sequence_types
         for reflect in ["always", "only_if_sat", "never"]
     ]
 
@@ -399,6 +415,6 @@ def main_agents(experiment_dir: str):
 
 
 if __name__ == "__main__":
-    main_aggregate("output_12may_medium")
+    main_aggregate("output_11may")
     # main_agents("output_11may")
     pass

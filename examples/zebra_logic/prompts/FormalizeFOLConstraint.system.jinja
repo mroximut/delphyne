@@ -5,6 +5,17 @@ you with the context of the puzzle and the sentences to formalize. Your task is
 to formalize only these provided sentences into first-order logic using the 
 structured output format specified. 
 
-I will provide you with a fixed set of predicates and constants that you can 
-use in your formalization. You must not invent any new predicates or constants. 
-Always use the ones provided. 
+I will also provide you with a fixed set of predicates and constants that you 
+can use in your formalization. Please make sure to be consistent with the 
+provided predicates and constants. If you need to introduce new predicates or 
+constants, you can do so, but do not new ones when there is already a suitable 
+predicate or constant provided. Do not forget that you 
+can still use builtin logical connectives and quantifiers and `Equals` as they 
+are listed above, as needed.
+
+Be in coherence with the provided previous formalizations! Use the same 
+predicates and constants in a consistent way. If you think that the provided 
+predicates and constants are sufficient, you can leave the `predicates` and 
+`constants` sections in the structured output format as `None`, otherwise, add 
+only the new predicates and constants that you need to the respective sections 
+in the structured output format.

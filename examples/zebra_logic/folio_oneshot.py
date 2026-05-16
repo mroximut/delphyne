@@ -10,7 +10,7 @@ from delphyne.stdlib.standard_models import APIType
 
 type StepType = Literal["Constraint", "Conclusion", "All"]
 type ReflectFlagTag = Literal[
-    "never", "always", "only_if_sat", "only_if_unsat"
+    "only_if_sat", "never", "always", "only_if_unsat"
 ]
 type StyleFlagTag = Literal["normal", "literally", "implicitly"]
 type Blacklist = Sequence[fol.StrFormalization | dp.Error]
@@ -84,7 +84,7 @@ class Verdict:
     judgement_solution: bool | None = None
 
 
-def obviously_invalid_refinement(
+def _obviously_invalid_refinement(
     original: fol.StrFormalization,
     refined: fol.StrFormalization,
 ) -> dp.Error | None:
@@ -125,7 +125,7 @@ def reflect(
 
     def check(refined_formalization: fol.StrFormalization):
         if (
-            e := obviously_invalid_refinement(
+            e := _obviously_invalid_refinement(
                 formalization, refined_formalization
             )
         ) is not None:
@@ -170,7 +170,6 @@ def folio_oneshot(
         ).using(lambda p: p.formalizeIP.check, OneShotIP),
     )
 
-    assert response is not None
     reflection_flag = yield from dp.get_flag(ReflectFlag)
     refined_response = Z3Response(
         formalizations=[], status="nop", model=None, error=None
@@ -209,15 +208,12 @@ def folio_oneshot(
                         model_or_unsat_core=unsat_core,
                     ).using(lambda p: p.reflect, OneShotIP)
                 )
-                solution = (
-                    refined_response.status == "unsat"
-                    or refined_response.status == "nop"
-                )
+                solution = refined_response.status != "sat"
             else:
                 solution = True
         case _:
-            first_solution = None
-            solution = None
+            yield from dp.fail(label=response.status, message=response.error)
+            first_solution, solution = None, None
 
     return Verdict(
         reflection_flag,
@@ -235,10 +231,20 @@ def check_constraints(
     step_type: StepType,
     check_consistency_of_premises_if_all: bool = True,
     additional_formalizations: list[fol.StrFormalization] = [],
-    blacklist: Blacklist = [],
+    # blacklist: Blacklist = [],
     timeout_in_seconds: float | None = None,
 ) -> Strategy[Compute, object, Z3Response | dp.Error]:
-    if not formalization_str.constraints and not formalization_str.conclusion:
+    if (
+        (
+            step_type == "All"
+            and (
+                not formalization_str.constraints
+                or not formalization_str.conclusion
+            )
+        )
+        or (step_type == "Constraint" and not formalization_str.constraints)
+        or (step_type == "Conclusion" and not formalization_str.conclusion)
+    ):
         return Z3Response(
             status="nop",
             formalizations=[],

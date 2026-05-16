@@ -8,61 +8,17 @@ The unsat core found by Z3 for the constraints together with the negation of
 the conclusion is:
 {{ query.unsat_core }}
 
-
-Your task is to audit whether this is a faithful proof conflict for the natural
-language puzzle.
-
-The unsat core contains formulas that conflict with each other. The conclusion
-appears there as negated. If the formalization is faithful, this means the
-premises really imply the conclusion. If the formalization is not faithful, the
-proof may be spurious.
-
-Think through these checks carefully:
-
-1. Identify which sentence is the conclusion. Every other sentence is a
-   premise.
-2. Translate the formulas in the unsat core back into natural language. Is
-   there truly a conflict between the English premises and the negation of the
-   English conclusion?
-3. Check whether the formalization made the proof too strong by adding the
-   conclusion, or an equivalent formula, as a constraint.
-4. Check whether a premise was mistranslated: wrong connective such as
-   inclusive-or vs exclusive-or, wrong quantifier, wrong negation scope,
-   reversed implication, missing antecedent condition, or swapped argument
-   order.
-5. Check whether the conclusion itself was mistranslated. A wrong conclusion
-   can make an invalid proof look valid.
-6. Check whether predicate and constant names are used consistently. Entity
-   drift, misspelled constants, or unrelated predicates can create fake
-   conflicts.
-7. Check for predicate drift. The same English concept must be represented by
-   the same predicate with the same polarity and argument order everywhere.
-   For example, do not let one sentence use `IsVacuum(x)` while another uses
-   `Vacuum(x)`, or `AnimalLover(x)` in one place and `LovesAnimals(x)` in
-   another unless an explicit bridge premise justifies it.
-
-
-Only refine if the unsat core does not correspond to a real conflict in the
-natural language puzzle.
+If the unsat core is not a faithful proof for the natural language puzzle, or 
+if the formalization is not overall faithful to the natural language sentences, 
+refine the formalization.
 
 If refinement is necessary, output one complete corrected formalization from
 scratch in the structured response format with sections `predicates`,
 `constants`, `constraints`, and `conclusion`. Include all correct premise
 formalizations, not just the changed formulas.
 
-Hard rules:
-
-- "Either or" statements must be formalized as exclusive-or (Xor), unless the sentence explicitly says "or both" or context clearly requires inclusive disjunction. 
-- Never add the conclusion, or any formula equivalent to the conclusion, as a
-  constraint.
-- Every constraint must correspond to a premise sentence, or to a minimal
-  implicit assumption needed to interpret a premise.
 - Do not weaken, remove, or leave out a true premise merely to make the problem
-  satisfiable.
-- Do not move a conclusion formula into `constraints`.
-- Do not put a premise formula into `conclusion`.
-- If the unsat core is a valid proof conflict for the English puzzle, return
-  `None` for all structured fields.
+satisfiable.
 
 Final answer: provide only the structured response. If no refinement is needed,
 all fields in the structured response must be `None`.

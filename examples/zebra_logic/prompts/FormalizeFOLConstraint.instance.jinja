@@ -1,4 +1,5 @@
-The predicates and constants that you will use in the formalization are as follows:
+The predicates and constants that you can use in the formalization are as 
+follows:
 
 Predicates:
 {{ query.predicates | yaml }}
@@ -6,21 +7,9 @@ Predicates:
 Constants:
 {{ query.constants | yaml }}
 
-Do not invent any new predicates or constants. Always use the ones provided 
-above.
-
 Previous formalizations are:
 
 {{ query.previous_formalizations | yaml }}
-
-Try to be in coherence with the previous formalizations. Use the same 
-predicates and constants in a consistent way. Try to use provided predicates 
-and constants, if you need more predicates or constants, you can add only the 
-new ones to  the `predicates` and `constants` sections in the structured 
-output, provided that they are consistent with the existing ones. If you 
-think that the provided predicates and constants are sufficient, you can leave 
-the `predicates` and `constants` sections in the structured output format as 
-`None`.
 
 Current step: {{ query.step_type }}
 {% if query.step_type == "Constraint" %}
@@ -34,7 +23,7 @@ The context of the puzzle is:
 {{ query.context | join("\n") }}
 {% endif %}
 
-**Sentences to formalize is below. Only formalize this**
+**Sentences to formalize are below. Only formalize this**
 
 {{ query.sentences | join("\n") }}
 
@@ -52,13 +41,13 @@ There were some problems while formalizing the current sentences that you encoun
 {% endif %}
     
 {% if item.meta and item.meta.get('error') and item.meta.get('formalization_str') %}
---------------------
 - **Following error encountered before! You must avoid this:** 
 {{ item.meta['error'] }}
 - The formalization that caused this error was:
 
 {{ item.meta['formalization_str'] }}
 {% endif %}
+--------------------
 {# --------------------- #}
 {# {% else %}
 ---------------------

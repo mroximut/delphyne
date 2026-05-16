@@ -8,64 +8,18 @@ The model found by Z3 that satisfies the constraints together with the
 negation of the conclusion is:
 {{ query.model }}
 
-
-Your task is to audit whether this is a faithful countermodel to the natural
-language puzzle.
-
-Think through these checks carefully:
-
-1. Identify which sentence is the conclusion. Every other sentence is a
-   premise.
-2. Read the Z3 model in natural language. Does it satisfy the premises as they
-   are stated in English while making the conclusion false?
-3. Check for predicate drift. The same English concept must be represented by
-   the same predicate with the same polarity and argument order everywhere.
-   For example, do not let one sentence use `IsVacuum(x)` while another uses
-   `Vacuum(x)`, or `AnimalLover(x)` in one place and `LovesAnimals(x)` in
-   another unless an explicit bridge premise justifies it.
-4. Check whether generic class statements were incorrectly represented as
-   ground facts. Sentences like "Vacuums suck", "All cats are mammals", or
-   "Plungers suck" usually require universally quantified rules over members
-   of the class, not facts about constants named `Vacuums`, `Cats`, or
-   `Plungers`.
-5. Check whether the formalization missed a premise, an implicit equality,
-   type/category bridge, exclusivity relation, transitivity relation, location
-   bridge, or entity identity that is clearly required by the English. Bridges
-   are allowed only when they express what the premise itself says or
-   presupposes; do not add broad background knowledge.
-6. Check whether the conclusion itself was mistranslated: wrong connective
-   such as inclusive-or vs exclusive-or, wrong quantifier, wrong negation scope,
-   reversed implication, or missing conjunct/disjunct.
-7. Check whether builtin `Equals` is used to represent identity of entities,
-   e.g. when formalizing "the same person" or "the same house" or "the same
-   color", "alternative name for", "alias for" etc. A very very very common
-   mistake is to fail to use `Equals` and instead use a predicate like
-   Alias(x, y) or AnotherNameFor(x,y) without properly constraining it.
-
-Only refine if the Z3 model is not a faithful countermodel because the current
-formalization is wrong or incomplete.
+Read the Z3 model in natural language. Does it satisfy the premises as they
+are stated in English while making the conclusion false?
+If the satisfiable model is not a faithful counterexample for the natural 
+language puzzle, or if the formalization is not overall faithful to the natural 
+language sentences, refine the formalization.
 
 If refinement is necessary, output one complete corrected formalization from
 scratch in the structured response format with sections `predicates`,
 `constants`, `constraints`, and `conclusion`. Include all correct premise
 formalizations, not just the changed formulas.
 
-Hard rules:
-
-- "Either or" statements must be formalized as exclusive-or (Xor), unless the sentence explicitly says "or both" or context clearly requires inclusive disjunction. 
-- Never add the conclusion, or any formula equivalent to the conclusion, as a
-  constraint.
-- Never add a premise, bridge, type constraint, equality, exclusivity rule, or
-  transitivity rule solely because it makes the conclusion follow. It must be
-  warranted by the English text.
-- Every constraint must correspond to a premise sentence, or to a minimal
-  implicit assumption needed to interpret a premise.
-- Do not add a constraint merely to make the model unsatisfiable.
-- Do not weaken, remove, or change a premise just to change the verdict.
-- Do not move a conclusion formula into `constraints`.
-- Do not put a premise formula into `conclusion`.
-- If the model is a valid counterexample to the English puzzle, return `None`
-  for all structured fields.
+- Do not add a constraint or an equivalent formulation of it to the conclusion, just to make the puzzle artificially unsatisfiable.
 
 Final answer: provide only the structured response. If no refinement is needed,
 all fields in the structured response must be `None`.

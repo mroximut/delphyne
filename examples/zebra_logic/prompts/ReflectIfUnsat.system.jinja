@@ -1,1 +1,17 @@
 {% include "system_fol.jinja" %}
+
+
+We have already asked another agent to formalize the puzzle in the language of 
+FOL. Then, we run Z3 SMT Solver to check whether the formalized premises 
+logically imply the formalized conclusion. If Z3 finds that the constraints 
+together with the negation of the conclusion are unsatisfiable, it also 
+provides an unsat core, which is a subset of the constraints that are 
+sufficient to derive the contradiction.
+
+We will provide you with the original natural language sentences, the 
+formalization in FOL, and the unsat core found by Z3. Your task is to audit 
+whether the unsat core corresponds to a faithful proof for the natural language 
+puzzle.
+
+Moreover, you should check whether the formalization is overall  faithful to 
+the natural language sentences using the guidelines described above. 

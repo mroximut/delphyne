@@ -7,10 +7,9 @@ Given a list of sentences in natural language, our goal is to convert them into
 a first-order logic representation using the given structured output format with
 sections for `predicates`, `constants`, `constraints`, and `conclusion`. The
 `predicates` section in the response contains the predicate definitions in the
-form "Predicate(arity)" (e.g., "Human(1)", "Loves(2)" would be valid predicate 
-definitions), the  `constants` section contains the list of constants used in 
-the formulae, and the `constraints` and `conclusion` sections contain the 
-actual formalized FOL formulae.
+form "Predicate(arity)". The  `constants` section contains the list of 
+constants used in the formulae. The `constraints` and `conclusion` sections 
+contain the actual formalized FOL formulae.
 
 An example formalization, when parsed, can look like:
 ```
@@ -33,10 +32,6 @@ Xor, Iff, or Equals as predicates in your response. If a predicate or constant
 is already defined in the previous formalizations, make sure you are consistent
 with the existing definition, spelling, arity, and argument order.
 
-Always respond with the provided structured response format. It has four
-sections: `predicates`, `constants`, `constraints`, and `conclusion`. Each
-section is a `list[str] | None`.
-
 The syntax for FOL is as follows and nothing else:
 - Bounded variables are represented by lowercase letters (e.g., x, y, z).
 - Constants are represented by capitalized words (e.g., Socrates, Alice).
@@ -46,38 +41,45 @@ include its arity in the `predicates` section and respect that arity in
 its usage. An argument of a predicate can be either a constant or
 a bounded variable, it cannot be another predicate.
 - Builtin logical connectives include:
-    - And: conjunction (e.g., And(P, Q)) (2 or more arguments)
-    - Or: disjunction (e.g., Or(P, Q)) (2 or more arguments)
+    - And: conjunction (e.g., And(P, Q, R)) (2 or more arguments)
+    - Or: disjunction (e.g., Or(P, Q, R)) (2 or more arguments)
     - Not: negation (e.g., Not(P)) (exactly 1 argument)
     - Xor: exclusive or (e.g., Xor(P, Q)) (exactly 2 arguments)
     - Implies: implication (e.g., Implies(P, Q)) (exactly 2 arguments)
     - Iff: biconditional (e.g., Iff(P, Q)) (exactly 2 arguments)
     - Equals: equality (e.g., Equals(x, y)) (exactly 2 arguments)
-    - Quantifiers include:
     - ForAll: universal quantification (e.g., ForAll(x, P(x))) (exactly 2 arguments)
     - Exists: existential quantification (e.g., Exists(x, P(x))) (exactly 2 arguments)
 
-Tips:
+**Tips:**
 - Keep premise/conclusion separation exact. A formula derived from the
 conclusion must not appear as a constraint.
-- Formalize statements like "Either P or Q" as Xor(P, Q). If the sentence explicitly says "or both", use Or(P, Q). Otherwise if context clearly requires inclusive disjunction, use Or(P, Q).
+- Formalize statements like "Either P or Q" as Xor(P, Q). If the sentence 
+explicitly says "or both", use Or(P, Q). Otherwise if context clearly requires 
+inclusive disjunction, use Or(P, Q).
 - Use relational predicates for relations between entities, categories, places,
 owners, times, or objects. For example, prefer In(x, NYC), Owns(Joe, item), or
 MadeFrom(item, Plastic) over baking the object into a unary predicate when the
 relation matters.
 - If the top-level operator is And, break down the formula into multiple
 constraints listed under the `constraints` section.
-- Do not add constants as 0-ary predicates to the `predicates` section. Add them to the `constants` section.
-- Constants cannot be just integers. for example use `Year1990` instead of just `1990`
-- If you will leave something as `None`, make it an actual `None` value, not a string "None", not a list of "None". 
-- Predicates cannot have integer arguments. If you need to represent an integer, use a constant (e.g., `Number5` ) and add it to the `constants` section.
-- Make sure to use builtin `Equals` to express equality between constants. For example, if you want to express that "Alice is another name for Bob", you would write `Equals(Alice, Bob)` and not `Alias(Alice, Bob)`. 
+- Do not add constants as 0-ary predicates to the `predicates` section. Add 
+them to the `constants` section.
+- Constants cannot be just integers. for example use `Year1990` instead of just 
+`1990`. Similarly, if you need to represent an integer as argument to a 
+predicate, use a constant (e.g., `Number5` ) and add it to the `constants` 
+section.
+- If you will leave something as `None`, make it an actual null value, not a 
+string "None", not a list of "None".  
+- Make sure to use builtin `Equals` to express equality between constants. For 
+example, if you want to express that "San Siro is another name for Guiseppa 
+Meazza", you would write `Equals(SanSiro, GuiseppaMeazza)` and not 
+`Alias(SanSiro, GuiseppaMeazza)`. 
 - Typing, equality, category, exclusivity, and transitivity assumptions are
 acceptable and encouraged when they are needed to express what the puzzle itself
-says or what its predicates presuppose. Keep them local and minimal: do not add
-broad real-world background knowledge, and do not add assumptions merely to make
-the conclusion easier to prove or disprove.
+says or what its predicates presuppose.
 - Do not add a formula merely because it would make the conclusion easier to
 prove or disprove.
 
-Answer only with the provided JSON-like structured response format and nothing else. Do not include any explanations or additional text.
+Answer only with the provided JSON-like structured response format and nothing 
+else.

@@ -23,7 +23,7 @@ configs_aggregate = [
     for max_rounds_each, reasoning_effort, sequence_type in [
         # (10, "low", False),
         # (10, "low", "mixed"),
-        (5, "low", "all_normal"),
+        (5, "low", "all_normal_reflect"),
         # (5, "medium", "all_normal_reflect"),
         # (5, "low", "all_normal_reflect"),
         # (10, "medium"),
@@ -38,5 +38,5 @@ if __name__ == "__main__":
         config_class=fe.AggregateConfig,
         context=dp.workspace_execution_context(__file__),
         configs=configs_aggregate,
-        output_dir=f"experiments/output_12may/{dp.path_stem(__file__)}",
+        output_dir=f"experiments/output_12may_again/{dp.path_stem(__file__)}",
     ).run_cli()
