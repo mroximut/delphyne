@@ -200,7 +200,7 @@ def folio_iterative_blacklist(
         case "sat":
             if response.model is not None:
                 model = response.model
-                refined_response = yield from dp.branch(
+                refined_response, _ = yield from dp.branch(
                     reflect(
                         "sat",
                         sentences=sentences,
@@ -323,9 +323,9 @@ def folio_iterative_blacklist_policy(
             majority_vote=(majority_vote_size is not None)
         )
         formalize_reflect = (
-            make_formalize_single(majority_vote=False).or_else(
-                fallback_reflect
-            )
+            make_formalize_single(majority_vote=False)  # .or_else(
+            #    fallback_reflect
+            # )
             if reflect_if_sat
             else fallback_reflect
         )

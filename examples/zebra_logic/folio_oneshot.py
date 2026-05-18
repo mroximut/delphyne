@@ -31,7 +31,13 @@ class OneShotIP:
 
 
 @dataclass
-class ReflectIfSat(dp.Query[dp.Response[fol.StrFormalization, Never]]):
+class RefinedFormalization:
+    str_formalization: fol.StrFormalization | None
+    reason: str | None
+
+
+@dataclass
+class ReflectIfSat(dp.Query[dp.Response[RefinedFormalization, Never]]):
     sentences: list[str]
     formalization: fol.StrFormalization
     model: str
@@ -41,7 +47,7 @@ class ReflectIfSat(dp.Query[dp.Response[fol.StrFormalization, Never]]):
 
 
 @dataclass
-class ReflectIfUnsat(dp.Query[dp.Response[fol.StrFormalization, Never]]):
+class ReflectIfUnsat(dp.Query[dp.Response[RefinedFormalization, Never]]):
     sentences: list[str]
     formalization: fol.StrFormalization
     unsat_core: str
@@ -78,7 +84,7 @@ class Verdict:
     reflection_flag: ReflectFlagTag
     style_flag: StyleFlagTag
     formalizations: list[fol.StrFormalization]
-    refined_formalizations: list[fol.StrFormalization] | None
+    refined_formalizations: list[RefinedFormalization] | None
     first_solution: bool | None
     final_solution: bool | None
     judgement_solution: bool | None = None
@@ -119,20 +125,25 @@ def reflect(
     sentences: list[str],
     formalizations: list[fol.StrFormalization],
     model_or_unsat_core: str,
-) -> Strategy[Branch | Fail, FormalizeIP, Z3Response]:
+) -> Strategy[Branch | Fail, FormalizeIP, tuple[Z3Response, str | None]]:
     Query = ReflectIfSat if sat_or_unsat == "sat" else ReflectIfUnsat
     formalization = sum(formalizations, fol.StrFormalization())
+    refinement_reason: str | None = None
 
-    def check(refined_formalization: fol.StrFormalization):
+    def check(refined_formalization: RefinedFormalization):
+        nonlocal refinement_reason
+        if refined_formalization.str_formalization is None:
+            refined_formalization.str_formalization = fol.StrFormalization()
         if (
             e := _obviously_invalid_refinement(
-                formalization, refined_formalization
+                formalization, refined_formalization.str_formalization
             )
         ) is not None:
             return dp.const_space(e)
         else:
+            refinement_reason = refined_formalization.reason
             return check_constraints(
-                refined_formalization, step_type="All"
+                refined_formalization.str_formalization, step_type="All"
             ).using(lambda p: p.check, FormalizeIP)
 
     response = yield from dp.interact(
@@ -144,7 +155,7 @@ def reflect(
         ).using(lambda p: p.formalize, FormalizeIP),
         process=lambda refined_formalization, _: check(refined_formalization),
     )
-    return response
+    return response, refinement_reason
 
 
 @strategy
@@ -174,6 +185,7 @@ def folio_oneshot(
     refined_response = Z3Response(
         formalizations=[], status="nop", model=None, error=None
     )
+    reason: str | None = None
     match response.status:
         case "sat":
             first_solution = False
@@ -182,7 +194,7 @@ def folio_oneshot(
                 and response.model is not None
             ):
                 model = response.model
-                refined_response = yield from dp.branch(
+                refined_response, reason = yield from dp.branch(
                     reflect(
                         sat_or_unsat="sat",
                         sentences=sentences,
@@ -200,7 +212,7 @@ def folio_oneshot(
                 and response.model is not None
             ):
                 unsat_core = response.model
-                refined_response = yield from dp.branch(
+                refined_response, reason = yield from dp.branch(
                     reflect(
                         sat_or_unsat="unsat",
                         sentences=sentences,
@@ -219,7 +231,10 @@ def folio_oneshot(
         reflection_flag,
         style_flag,
         response.formalizations,
-        refined_response.formalizations,
+        [
+            RefinedFormalization(fml, reason)
+            for fml in refined_response.formalizations
+        ],
         first_solution,
         solution,
     )
@@ -369,10 +384,8 @@ def dummy_fallback_policy() -> dp.Policy[Branch | Fail, FormalizeIP]:
             [
                 dp.Structured(  # type: ignore
                     {
-                        "constants": None,
-                        "predicates": None,
-                        "constraints": None,
-                        "conclusion": None,
+                        "str_formalization": None,
+                        "reason": None,
                     }
                 )
             ]
@@ -407,7 +420,7 @@ def folio_oneshot_policy(
         temperature=temperature,
         timeout_in_seconds=timeout_in_seconds,
         api_type=api_type,
-    ).or_else(dummy_fallback_policy())
+    )  # .or_else(dummy_fallback_policy())
 
     return dp.dfs(max_depth=max_rounds) @ dp.elim_flag(
         ReflectFlag, reflect_flag

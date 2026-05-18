@@ -17,17 +17,14 @@ configs_iterative = [
         reflect_if_sat=reflect,
         reasoning_effort=cast(dp.ReasoningEffort, reasoning_effort),
         temperature=None,
-        max_dollar_budget=0.01,
+        max_dollar_budget=budget,
         seed=seed,
         api_type="chat_completions",
     )
     for bench_id in fe.VALIDATION_IDS
-    for requests, retries, reasoning_effort, reflect in [
-        # (20, 3, "minimal"),
-        # (30, 3, "low", False),
-        (30, 3, "low", True),
-        # (20, 3, "medium"),
-        # (15, 3, "minimal"),
+    for requests, retries, reasoning_effort, budget, reflect in [
+        (30, 3, "low", 0.01, True),
+        # (30, 3, "medium", 0.02, True),
     ]
     for seed in range(3)
 ]
@@ -38,5 +35,5 @@ if __name__ == "__main__":
         config_class=fe.IterativeConfig,
         context=dp.workspace_execution_context(__file__),
         configs=configs_iterative,
-        output_dir=f"experiments/output_12may/{dp.path_stem(__file__)}",
+        output_dir=f"experiments/output_16_may_low/{dp.path_stem(__file__)}",
     ).run_cli()

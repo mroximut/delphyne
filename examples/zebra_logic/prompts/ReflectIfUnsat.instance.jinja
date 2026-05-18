@@ -1,11 +1,11 @@
 The logic puzzle is:
 {{  query.sentences | join("\n") }}
 
-The formalizations are:
+The formalization from the other agent is:
 {{ query.formalization | yaml }}
 
-The unsat core found by Z3 for the constraints together with the negation of
-the conclusion is:
+The unsat core found by Z3 for the constraints above together with the negation 
+of the conclusion is:
 {{ query.unsat_core }}
 
 If the unsat core is not a faithful proof for the natural language puzzle, or 
@@ -15,10 +15,11 @@ refine the formalization.
 If refinement is necessary, output one complete corrected formalization from
 scratch in the structured response format with sections `predicates`,
 `constants`, `constraints`, and `conclusion`. Include all correct premise
-formalizations, not just the changed formulas.
+formalizations, not just the changed formulas. Provide a brief refinement 
+reason in the `reason` field. 
 
 - Do not weaken, remove, or leave out a true premise merely to make the problem
 satisfiable.
 
 Final answer: provide only the structured response. If no refinement is needed,
-all fields in the structured response must be `None`.
+all top-level fields in the structured response must be `None`.

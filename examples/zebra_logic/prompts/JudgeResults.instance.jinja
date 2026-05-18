@@ -9,12 +9,14 @@ The candidate formalizations are:
 
 {% for verdict in query.results %}
 -----------------------------------
-Strategy with index {{ loop.index }} produced the following initial formalization:
+Strategy with index {{ loop.index }} produced the following initial 
+formalization:
 
 {{ verdict.formalizations | yaml }}
 
 {% if verdict.refined_formalizations %}
-It then refined it into the following formalization:
+Strategy with index {{ loop.index }} then refined it into the following 
+formalization:
 {{ verdict.refined_formalizations | yaml }}
 {% else %}
 It did not produce a refined formalization.

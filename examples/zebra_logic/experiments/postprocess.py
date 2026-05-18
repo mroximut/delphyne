@@ -21,11 +21,16 @@ class StrFormalization(BaseModel):
     conclusion: list[str] | None = None
 
 
+class RefinedFormalization(BaseModel):
+    str_formalization: StrFormalization
+    reason: str | None
+
+
 class Verdict(BaseModel):
     reflection_flag: Literal["always", "never", "only_if_sat", "only_if_unsat"]
     style_flag: Literal["normal", "literally", "implicitly"]
     formalizations: list[StrFormalization]
-    refined_formalizations: list[StrFormalization] | None
+    refined_formalizations: list[RefinedFormalization] | None
     first_solution: bool | None
     final_solution: bool | None
     judgement_solution: bool | None = None
@@ -415,6 +420,6 @@ def main_agents(experiment_dir: str):
 
 
 if __name__ == "__main__":
-    main_aggregate("output_11may")
+    main_aggregate("output_16_may_low")
     # main_agents("output_11may")
     pass
