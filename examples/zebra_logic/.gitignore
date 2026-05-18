@@ -3,3 +3,4 @@ datasets--yale-nlp--FOLIO
 experiments/output*/
 experiments/test-output/
 experiments/failure_modes/
+experiments/visualize/
