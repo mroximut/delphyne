@@ -38,3 +38,106 @@
               - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
             conclusion:
               - Or(Not(WantsAddiction(Rina)), Not(AwareThatCaffeineDrug(Rina)))
+    - query: __Computation__
+      args:
+        fun: run_fol_in_z3
+        args:
+          str_formalizations:
+            - predicates:
+                - RegularlyDrinkCoffee(1)
+                - DependentOnCaffeine(1)
+                - WantsAddiction(1)
+                - Student(1)
+                - AwareThatCaffeineDrug(1)
+              constants: [Rina]
+              constraints:
+                - ForAll(x, Implies(RegularlyDrinkCoffee(x), DependentOnCaffeine(x)))
+                - ForAll(x, Or(RegularlyDrinkCoffee(x), Not(WantsAddiction(x))))
+                - ForAll(x, Implies(Not(WantsAddiction(x)), AwareThatCaffeineDrug(x)))
+                - Xor(And(Student(Rina), Not(AwareThatCaffeineDrug(Rina))), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+                - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+              conclusion:
+                - Or(Not(WantsAddiction(Rina)), Not(AwareThatCaffeineDrug(Rina)))
+          step_type: Constraint
+          timeout_in_seconds: null
+      answers:
+        - answer: |
+            formalizations:
+              - predicates:
+                  - RegularlyDrinkCoffee(1)
+                  - DependentOnCaffeine(1)
+                  - WantsAddiction(1)
+                  - Student(1)
+                  - AwareThatCaffeineDrug(1)
+                constants:
+                  - Rina
+                constraints:
+                  - ForAll(x, Implies(RegularlyDrinkCoffee(x), DependentOnCaffeine(x)))
+                  - ForAll(x, Or(RegularlyDrinkCoffee(x), Not(WantsAddiction(x))))
+                  - ForAll(x, Implies(Not(WantsAddiction(x)), AwareThatCaffeineDrug(x)))
+                  - Xor(And(Student(Rina), Not(AwareThatCaffeineDrug(Rina))), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+                  - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+                conclusion:
+                  - Or(Not(WantsAddiction(Rina)), Not(AwareThatCaffeineDrug(Rina)))
+            status: sat
+            model: |-
+              [constraint_1: ForAll(x, Or(RegularlyDrinkCoffee(x), Not(WantsAddiction(x)))) = True,
+               constraint_0: ForAll(x, Implies(RegularlyDrinkCoffee(x), DependentOnCaffeine(x))) = True,
+               constraint_2: ForAll(x, Implies(Not(WantsAddiction(x)), AwareThatCaffeineDrug(x))) = True,
+               Rina = Object!val!0,
+               constraint_4: Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina)))) = True,
+               constraint_3: Xor(And(Student(Rina), Not(AwareThatCaffeineDrug(Rina))), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina)))) = True,
+               Student = [else -> True],
+               WantsAddiction = [else -> True],
+               RegularlyDrinkCoffee = [else -> True],
+               DependentOnCaffeine = [else -> True],
+               AwareThatCaffeineDrug = [else -> False]]
+            error: null
+    - query: __Computation__
+      args:
+        fun: run_fol_in_z3
+        args:
+          str_formalizations:
+            - predicates:
+                - RegularlyDrinkCoffee(1)
+                - DependentOnCaffeine(1)
+                - WantsAddiction(1)
+                - Student(1)
+                - AwareThatCaffeineDrug(1)
+              constants: [Rina]
+              constraints:
+                - ForAll(x, Implies(RegularlyDrinkCoffee(x), DependentOnCaffeine(x)))
+                - ForAll(x, Or(RegularlyDrinkCoffee(x), Not(WantsAddiction(x))))
+                - ForAll(x, Implies(Not(WantsAddiction(x)), AwareThatCaffeineDrug(x)))
+                - Xor(And(Student(Rina), Not(AwareThatCaffeineDrug(Rina))), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+                - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+              conclusion:
+                - Or(Not(WantsAddiction(Rina)), Not(AwareThatCaffeineDrug(Rina)))
+          step_type: All
+          timeout_in_seconds: null
+      answers:
+        - answer: |
+            formalizations:
+              - predicates:
+                  - RegularlyDrinkCoffee(1)
+                  - DependentOnCaffeine(1)
+                  - WantsAddiction(1)
+                  - Student(1)
+                  - AwareThatCaffeineDrug(1)
+                constants:
+                  - Rina
+                constraints:
+                  - ForAll(x, Implies(RegularlyDrinkCoffee(x), DependentOnCaffeine(x)))
+                  - ForAll(x, Or(RegularlyDrinkCoffee(x), Not(WantsAddiction(x))))
+                  - ForAll(x, Implies(Not(WantsAddiction(x)), AwareThatCaffeineDrug(x)))
+                  - Xor(And(Student(Rina), Not(AwareThatCaffeineDrug(Rina))), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+                  - Xor(And(Student(Rina), DependentOnCaffeine(Rina)), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina))))
+                conclusion:
+                  - Or(Not(WantsAddiction(Rina)), Not(AwareThatCaffeineDrug(Rina)))
+            status: unsat
+            model: |-
+              [constraint_0: ForAll(x, Implies(RegularlyDrinkCoffee(x), DependentOnCaffeine(x))),
+               conclusion_0: Not(Or(Not(WantsAddiction(Rina)), Not(AwareThatCaffeineDrug(Rina)))),
+               constraint_3: Xor(And(Student(Rina), Not(AwareThatCaffeineDrug(Rina))), And(Not(Student(Rina)), Not(DependentOnCaffeine(Rina)))),
+               constraint_1: ForAll(x, Or(RegularlyDrinkCoffee(x), Not(WantsAddiction(x))))]
+            error: null

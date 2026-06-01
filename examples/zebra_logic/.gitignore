@@ -4,3 +4,4 @@ experiments/output*/
 experiments/test-output/
 experiments/failure_modes/
 experiments/visualize/
+experiments/results/

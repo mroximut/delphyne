@@ -74,11 +74,12 @@ def _reset_global_predicates_and_constants():
 
 @dataclass
 class Z3Response:
-    """Result of running something in the global Z3 solver.
-    status: One of "sat", "unsat", "unknown", or "error".
-    model: The model string produced by Z3 for satisfiable problems,
-        or None otherwise.
-    error: An error description if something went wrong, else None.
+    """
+    Result of running Z3 on a formalization.
+
+    status: Status of the Z3 Solver
+    model: The found satisfying countermodel or unsat core, if available.
+    error: An error description if something went wrong.
     """
 
     formalizations: list[StrFormalization]

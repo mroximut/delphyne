@@ -1,0 +1,64 @@
+- input:
+    request:
+      chat:
+        - role: system
+          content: |-
+            Does the conclusion logically follow from the premises?
+
+            The answer `True` means the conclusion follows from the premises.
+            The answer `False` means the conclusion does NOT follow from the premises.
+            The answer `None` means it cannot be determined whether the conclusion
+            follows from the premises.
+        - role: user
+          content: |-
+            sentences:
+              - All people who regularly drink coffee are dependent on caffeine.
+              - People regularly drink coffee, or they don't want to be addicted to caffeine, or both.
+              - No one who doesn't want to be addicted to caffeine is unaware that caffeine is a drug.
+              - Rina is either a student who is unaware that caffeine is a drug, or she is not a student and is she
+                aware that caffeine is a drug.
+              - Rina  is either a student who is dependent on caffeine, or she is not a student and not dependent
+                on caffeine.
+              - 'Conclusion: Rina doesn''t want to be addicted to caffeine or is unaware that caffeine is a drug.'
+      options:
+        model: gpt-5-nano
+        reasoning_effort: low
+      structured_output:
+        name: DeductionAnswer
+        description: 'DeductionAnswer(answer: bool | None)'
+        schema:
+          properties:
+            answer:
+              anyOf:
+                - type: boolean
+                - type: 'null'
+              title: Answer
+          required:
+            - answer
+          title: DeductionAnswer
+          type: object
+    iter: 1
+  output:
+    outputs:
+      - content:
+          structured:
+            answer: true
+        tool_calls: []
+    budget:
+      values:
+        num_requests: 1
+        num_completions: 1
+        input_tokens: 264
+        output_tokens: 1331
+        cached_input_tokens: 0
+        price: 0.0005455999999999999
+    log_items: []
+    model_name: gpt-5-nano-2025-08-07
+    usage_info:
+      input_tokens: 264
+      input_tokens_details:
+        cached_tokens: 0
+      output_tokens: 1331
+      output_tokens_details:
+        reasoning_tokens: 1280
+      total_tokens: 1595

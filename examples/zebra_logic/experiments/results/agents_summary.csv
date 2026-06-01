@@ -1,0 +1,10 @@
+correct,total,strategy_type,sequence_type,aggregation_type,reflection_type,oneshot_model_type,oneshot_reflect_type,seed
+110,134,only_ask,,,,,,0
+107,134,only_ask,,,,,,1
+111,134,only_ask,,,,,,2
+111,134,formalization_agent,,,,,,0
+111,134,formalization_agent,,,,,,1
+104,134,formalization_agent,,,,,,2
+106,134,z3_agent,,,,,,0
+104,134,z3_agent,,,,,,1
+107,134,z3_agent,,,,,,2

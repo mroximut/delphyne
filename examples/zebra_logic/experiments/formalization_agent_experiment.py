@@ -17,10 +17,10 @@ configs_formalization_agent = [
     )
     for bench_id in fe.VALIDATION_IDS
     for reasoning_effort, reqs, budget in [
-        # ("low", 10, 0.01),
-        ("medium", 10, 0.02),
+        ("low", 10, 0.01),
+        # ("medium", 10, 0.02),
     ]
-    for seed in range(1)
+    for seed in range(3)
 ]
 
 
@@ -29,5 +29,5 @@ if __name__ == "__main__":
         config_class=fe.FormalizationAgentConfig,
         context=dp.workspace_execution_context(__file__),
         configs=configs_formalization_agent,
-        output_dir=f"experiments/output_16_may/{dp.path_stem(__file__)}",
+        output_dir=f"experiments/output_standard/{dp.path_stem(__file__)}",
     ).run_cli()

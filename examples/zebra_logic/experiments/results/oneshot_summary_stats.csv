@@ -1,0 +1,5 @@
+total,strategy_type,sequence_type,aggregation_type,reflection_type,oneshot_model_type,oneshot_reflect_type,correct_mean,correct_std
+134,blacklist,,,,iterative_blacklist,only_if_sat,109.66666666666667,2.516611478423582
+134,oneshot,all_normal_reflect,,always,normal,always,110.0,3.605551275463989
+134,oneshot,all_normal_reflect,,always,normal,never,100.66666666666667,0.5773502691896247
+134,oneshot,all_normal_reflect,,always,normal,only_if_sat,110.0,3.605551275463989

@@ -1,0 +1,8 @@
+total,strategy_type,sequence_type,aggregation_type,reflection_type,oneshot_model_type,oneshot_reflect_type,correct_mean,correct_std
+134,aggregate,all_normal_reflect,favor_unsat,always,,,117.33333333333333,2.0816659994661335
+134,aggregate,all_normal_reflect,favor_unsat,never,,,116.33333333333333,1.5275252316519463
+134,aggregate,all_normal_reflect,favor_unsat,only_if_sat,,,117.66666666666667,1.5275252316519463
+134,aggregate,all_normal_reflect,judge,always,,,110.33333333333333,3.055050463303895
+134,aggregate,all_normal_reflect,majority_vote,always,,,113.66666666666667,2.516611478423582
+134,aggregate,all_normal_reflect,majority_vote,never,,,109.66666666666667,0.5773502691896278
+134,aggregate,all_normal_reflect,majority_vote,only_if_sat,,,114.0,2.0

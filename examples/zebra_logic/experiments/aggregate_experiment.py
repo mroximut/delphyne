@@ -34,5 +34,5 @@ if __name__ == "__main__":
         config_class=fe.AggregateConfig,
         context=dp.workspace_execution_context(__file__),
         configs=configs_aggregate,
-        output_dir=f"experiments/output_16_may_low/{dp.path_stem(__file__)}",
+        output_dir=f"experiments/output_standard/{dp.path_stem(__file__)}",
     ).run_cli()

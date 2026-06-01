@@ -43,18 +43,6 @@ def sample(keys: list[int], len_samples: int, seed: int = 42) -> list[int]:
     return random.sample(keys, len_samples)
 
 
-# SAMPLE_IDS_9feb_200 = [
-#     id
-#     for id in sample(list(BENCHS.keys()), len(BENCHS), seed=424242)
-#     if BENCHS[id][1] is not None
-# ][:200] ## train csv
-
-# SAMPLE_IDS_5_may = [
-#     id
-#     for id in sample(list(BENCHS.keys()), len(BENCHS), seed=424242)
-#     if BENCHS[id][1] is not None
-# ][200:400] ## train csv
-
 VALIDATION_IDS = [
     id for id in list(BENCHS.keys()) if BENCHS[id][1] is not None
 ]

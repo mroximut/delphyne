@@ -1,3 +1,7 @@
+"""
+Standard baseline strategies for solving FOLIO.
+"""
+
 import ast
 from dataclasses import dataclass
 
@@ -75,6 +79,11 @@ def _run_z3_tool(tool_call: CheckZ3) -> Strategy[Compute, object, Z3Response]:
 def folio_only_ask(
     puzzle: str,
 ) -> Strategy[Branch | Fail, FolioAskIP, bool | None]:
+    """
+    Direct question-answering baseline that only uses the
+    model to answer whether the conclusion follows from the premises,
+    without any formalization or external tools.
+    """
     sentences = puzzle.strip().split("\n")
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
     result = yield from dp.branch(
@@ -89,6 +98,10 @@ def folio_only_ask(
 def folio_formalization_agent(
     puzzle: str,
 ) -> Strategy[Branch | Fail, FolioAskIP, bool | None]:
+    """
+    A baseline strategy that uses a model which has access to a tool
+    for submitting formalizations that are later translated to Z3 and checked.
+    """
     sentences = puzzle.strip().split("\n")
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
     result = yield from dp.interact(
@@ -120,9 +133,8 @@ def folio_ask_policy(
     )
 
 
-# --- Z3 constraint solver agent ---
+### Direct Z3 agent
 
-# Whitelisted z3 names available in eval() expressions.
 _Z3_ALLOWED_NAMES: list[str] = [
     # Core sorts / constructors
     "BoolSort",
@@ -155,7 +167,6 @@ _Z3_ALLOWED_NAMES: list[str] = [
     "substitute",
 ]
 
-# Whitelisted attribute names allowed on z3 objects.
 _Z3_ALLOWED_ATTRS: list[str] = []
 
 
@@ -304,6 +315,11 @@ class FolioZ3AgentIP:
 def folio_z3_agent(
     puzzle: str,
 ) -> Strategy[Branch | Fail, FolioZ3AgentIP, bool | None]:
+    """
+    A baseline strategy that uses a model which has access to a tool for
+    directly submitting Z3 declarations and constraints that are
+    checked by the Z3 solver.
+    """
     sentences = puzzle.strip().split("\n")
     yield from dp.ensure(len(sentences) > 0, "The puzzle is empty.")
     result = yield from dp.interact(

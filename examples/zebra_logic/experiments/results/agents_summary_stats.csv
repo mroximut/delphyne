@@ -1,0 +1,4 @@
+total,strategy_type,sequence_type,aggregation_type,reflection_type,oneshot_model_type,oneshot_reflect_type,correct_mean,correct_std
+134,formalization_agent,,,,,,108.66666666666667,4.041451884327382
+134,only_ask,,,,,,109.33333333333333,2.081665999466134
+134,z3_agent,,,,,,105.66666666666667,1.5275252316519452

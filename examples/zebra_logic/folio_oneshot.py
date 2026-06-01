@@ -246,7 +246,6 @@ def check_constraints(
     step_type: StepType,
     check_consistency_of_premises_if_all: bool = True,
     additional_formalizations: list[fol.StrFormalization] = [],
-    # blacklist: Blacklist = [],
     timeout_in_seconds: float | None = None,
 ) -> Strategy[Compute, object, Z3Response | dp.Error]:
     if (
@@ -266,46 +265,6 @@ def check_constraints(
             model=None,
             error=None,
         )
-    # if blacklist, for each item in blacklist, check if additional + item
-    # implies formalization_str
-    # and additional + formalization_str implies item. If so, they are
-    # equivalent and we should return an error.
-    # if blacklist and step_type == "Constraint":
-    #     new_formalizations = additional_formalizations + [formalization_str]
-    #     for black in blacklist:
-    #         if isinstance(black, dp.Error):
-    #             continue
-    #         else:
-    #             # Check for equivalence between formalization_str and item
-    #             old_formalizations = additional_formalizations + [black]
-    #             new_implies_old = yield from dp.compute(
-    #                 check_implication_in_z3
-    #             )(
-    #                 new_formalizations,
-    #                 [black],
-    #                 timeout_in_seconds=timeout_in_seconds,
-    #             )
-    #             old_implies_new = yield from dp.compute(
-    #                 check_implication_in_z3
-    #             )(
-    #                 old_formalizations,
-    #                 [formalization_str],
-    #                 timeout_in_seconds=timeout_in_seconds,
-    #             )
-    #             if (
-    #                 new_implies_old.status == "unsat"
-    #                 and old_implies_new.status == "unsat"
-    #             ):
-    #                 return dp.Error(
-    #                     label="fol_equivalent_formalization",
-    #                     meta={
-    #                         "error": "The formalization is equivalent to "
-    #                         + "a blacklisted formalization.",
-    #                         "formalization_str": formalization_str,
-    #                         "blacklisted_item": black,
-    #                     },
-    #                 )
-
     if check_consistency_of_premises_if_all and step_type == "All":
         consistency_response = yield from dp.compute(run_fol_in_z3)(
             additional_formalizations + [formalization_str],
@@ -433,7 +392,3 @@ def folio_oneshot_policy(
 def elim_z3_compute(timeout: float):
     z3_compute_args = {"timeout_in_seconds": timeout}
     return dp.elim_compute(override_args=z3_compute_args)
-
-
-if __name__ == "__main__":
-    pass

@@ -201,10 +201,13 @@ def process_results(
     reflection_type: str | None = None,
     oneshot_model_type: str | None = None,
     oneshot_reflect_type: str | None = None,
+    seed: int | None = None,
 ) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     path_prefix = Path(__file__).resolve().parent / experiment_dir
-    results_summary = pd.read_csv(path_prefix / RESULTS_SUMMARY)  # type: ignore
+    results_summary = pd.read_csv(  # type: ignore
+        path_prefix / RESULTS_SUMMARY
+    )
     with open(path_prefix / EXPERIMENT_STATE_FILE, "r") as f:
         experiment_yaml = yaml.safe_load(f)  # type: ignore
     configs_dir = path_prefix / CONFIGS_SUBDIR
@@ -272,6 +275,14 @@ def process_results(
                 else (merged_df["sequence_type"] == sequence_type)
             )
         ]
+    if seed is not None:
+        if "seed" not in merged_df:
+            raise ValueError(
+                f"Missing seed column in {path_prefix / RESULTS_SUMMARY}"
+            )
+        seed_col = pd.to_numeric(merged_df["seed"], errors="coerce").fillna(0)
+        merged_df = merged_df[seed_col == seed]
+
     correct = merged_df["correct"].sum()
     total = len(merged_df["ground_truth"].dropna())
     pct = f"{correct / total:.2%}" if total else "n/a"
@@ -287,6 +298,7 @@ def process_results(
             if strategy_type == "oneshot"
             else ""
         )
+        + (f", seed: {seed}" if seed is not None else "")
     )
 
     merged_df.to_csv(path_prefix / save_name, index=False)  # type: ignore
@@ -300,13 +312,35 @@ def process_results(
         "reflection_type": reflection_type,
         "oneshot_model_type": oneshot_model_type,
         "oneshot_reflect_type": oneshot_reflect_type,
+        "seed": seed,
     }
 
 
-def main_aggregate(experiment_dir: str):
+def _available_seeds(experiment_dir: str) -> list[int]:
+    path_prefix = Path(__file__).resolve().parent / experiment_dir
+    results_summary = pd.read_csv(  # type: ignore
+        path_prefix / RESULTS_SUMMARY
+    )
+    if "seed" not in results_summary:
+        raise ValueError(
+            f"Missing seed column in {path_prefix / RESULTS_SUMMARY}"
+        )
+    seed_col = pd.to_numeric(results_summary["seed"], errors="coerce").fillna(
+        0
+    )
+    return sorted(int(s) for s in seed_col.unique())
+
+
+def main_aggregate(experiment_dir: str, seeds: Sequence[int] | None = None):
     oneshot_dicts: list[dict[str, Any]] = []
     aggregate = experiment_dir + "/aggregate_experiment"
     blacklist = experiment_dir + "/iterative_experiment"
+    aggregate_seeds = (
+        list(seeds) if seeds is not None else _available_seeds(aggregate)
+    )
+    blacklist_seeds = (
+        list(seeds) if seeds is not None else _available_seeds(blacklist)
+    )
 
     sequence_types = [
         "all_normal_reflect",
@@ -319,8 +353,11 @@ def main_aggregate(experiment_dir: str):
             sequence_type=sequence_type,
             aggregation_type=aggregation_type,
             reflection_type=reflection_type,
-            save_name=f"merged_results_{sequence_type}_{aggregation_type}_{reflection_type}.csv",
+            save_name=f"merged_results_{sequence_type}_{aggregation_type}"
+            + f"_{reflection_type}_seed_{seed}.csv",
+            seed=seed,
         )
+        for seed in aggregate_seeds
         for sequence_type in sequence_types
         for aggregation_type in ["majority_vote", "favor_unsat", "judge"]
         for reflection_type in (
@@ -334,20 +371,6 @@ def main_aggregate(experiment_dir: str):
         )
     ]
 
-    # oneshot_dicts += [
-    #     process_results(
-    #         aggregate,
-    #         "oneshot",
-    #         sequence_type="mixed",
-    #         reflection_type="mixed",
-    #         oneshot_model_type=model_type,
-    #         oneshot_reflect_type=reflect,
-    #         save_name=f"merged_results_oneshot_{model_type}_{reflect}.csv",
-    #     )
-    #     for model_type in ["literal", "implicitly"]
-    #     for reflect in ["always", "never"]
-    # ]
-
     oneshot_dicts += [
         process_results(
             aggregate,
@@ -359,9 +382,12 @@ def main_aggregate(experiment_dir: str):
             oneshot_model_type="normal",
             oneshot_reflect_type=reflect,
             save_name=(
-                f"merged_results_oneshot_{sequence_type}_normal_{reflect}.csv"
+                f"merged_results_oneshot_{sequence_type}_normal_{reflect}"
+                f"_seed_{seed}.csv"
             ),
+            seed=seed,
         )
+        for seed in aggregate_seeds
         for sequence_type in sequence_types
         for reflect in ["always", "only_if_sat", "never"]
     ]
@@ -372,7 +398,10 @@ def main_aggregate(experiment_dir: str):
             "blacklist",
             oneshot_model_type="iterative_blacklist",
             oneshot_reflect_type="only_if_sat",
+            save_name=f"merged_results_seed_{seed}.csv",
+            seed=seed,
         )
+        for seed in blacklist_seeds
     ]
 
     pd.DataFrame(aggregate_dicts).to_csv(
@@ -389,27 +418,52 @@ def main_aggregate(experiment_dir: str):
     )
 
 
-def main_agents(experiment_dir: str):
+def main_agents(experiment_dir: str, seeds: Sequence[int] | None = None):
     only_ask = experiment_dir + "/only_ask_experiment"
     formalization_agent = experiment_dir + "/formalization_agent_experiment"
     z3_agent = experiment_dir + "/z3_agent_experiment"
-    agent_dicts = [
-        process_results(
-            only_ask,
-            "only_ask",
-            save_name="merged_results_only_ask.csv",
-        ),
-        process_results(
-            formalization_agent,
-            "formalization_agent",
-            save_name="merged_results_formalization_agent.csv",
-        ),
-        process_results(
-            z3_agent,
-            "z3_agent",
-            save_name="merged_results_z3_agent.csv",
-        ),
-    ]
+    only_ask_seeds = (
+        list(seeds) if seeds is not None else _available_seeds(only_ask)
+    )
+    formalization_agent_seeds = (
+        list(seeds)
+        if seeds is not None
+        else _available_seeds(formalization_agent)
+    )
+    z3_agent_seeds = (
+        list(seeds) if seeds is not None else _available_seeds(z3_agent)
+    )
+    agent_dicts = (
+        [
+            process_results(
+                only_ask,
+                "only_ask",
+                save_name=f"merged_results_only_ask_seed_{seed}.csv",
+                seed=seed,
+            )
+            for seed in only_ask_seeds
+        ]
+        + [
+            process_results(
+                formalization_agent,
+                "formalization_agent",
+                save_name=(
+                    f"merged_results_formalization_agent_seed_{seed}.csv"
+                ),
+                seed=seed,
+            )
+            for seed in formalization_agent_seeds
+        ]
+        + [
+            process_results(
+                z3_agent,
+                "z3_agent",
+                save_name=f"merged_results_z3_agent_seed_{seed}.csv",
+                seed=seed,
+            )
+            for seed in z3_agent_seeds
+        ]
+    )
 
     pd.DataFrame(agent_dicts).to_csv(
         Path(__file__).resolve().parent
@@ -419,7 +473,48 @@ def main_agents(experiment_dir: str):
     )
 
 
+def compute_standard_deviation(
+    csv_path: str,
+    result_col: str = "correct",
+    save_path: str | None = None,
+):
+    path = Path(__file__).resolve().parent / csv_path
+    df = pd.read_csv(path)  # type: ignore
+    if "seed" not in df:
+        raise ValueError(f"Missing seed column in {csv_path}")
+    if result_col not in df:
+        raise ValueError(f"Missing result column {result_col!r} in {csv_path}")
+
+    group_cols = [col for col in df.columns if col not in {"seed", result_col}]
+    if not group_cols:
+        raise ValueError(f"No columns to identify matching rows in {csv_path}")
+
+    stats_df = df.copy()
+    stats_df[result_col] = pd.to_numeric(stats_df[result_col], errors="coerce")
+    stats_df = (
+        stats_df.groupby(group_cols, dropna=False)[result_col]
+        .agg(["mean", "std"])
+        .reset_index()
+        .rename(
+            columns={
+                "mean": f"{result_col}_mean",
+                "std": f"{result_col}_std",
+            }
+        )
+    )
+    stats_df[f"{result_col}_std"] = stats_df[f"{result_col}_std"].fillna(0)
+
+    output_path = (
+        Path(save_path)
+        if save_path is not None
+        else Path(csv_path).with_name(f"{Path(csv_path).stem}_stats.csv")
+    )
+    stats_df.to_csv(output_path, index=False)  # type: ignore
+
+
 if __name__ == "__main__":
-    main_aggregate("output_16_may_low")
-    # main_agents("output_11may")
-    pass
+    main_aggregate("output_custom", [0, 1, 2])
+    main_agents("output_standard", [0, 1, 2])
+    # compute_standard_deviation("results/agents_summary.csv")
+    # compute_standard_deviation("results/aggregate_summary.csv")
+    # compute_standard_deviation("results/oneshot_summary.csv")

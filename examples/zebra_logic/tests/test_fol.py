@@ -1,8 +1,9 @@
+# pyright: basic
 import os
 import sys
 
 import pytest
-import z3  # type: ignore
+import z3
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
@@ -30,7 +31,7 @@ from fol import (  # noqa: E402
 )
 
 
-def test_const_and_predicate_def_identity_is_name_based() -> None:
+def test_const_and_predicate_def_identity_is_name_based():
     assert Const("a", sort="Person") == Const("a", sort="Place")
     assert len({Const("a", sort="Person"), Const("a", sort="Place")}) == 1
 
@@ -70,18 +71,16 @@ def test_const_and_predicate_def_identity_is_name_based() -> None:
         (Exists(Var("x"), Predicate("P", [Var("x")])), "Exists(x, P(x))"),
     ],
 )
-def test_pretty_print_covers_formula_variants(
-    formula: object, expected: str
-) -> None:
+def test_pretty_print_covers_formula_variants(formula, expected: str):
     assert pretty_print(formula) == expected
 
 
-def test_pretty_print_arg_handles_vars_and_constants() -> None:
+def test_pretty_print_arg_handles_vars_and_constants():
     assert pretty_print_arg(Var("x")) == "x"
     assert pretty_print_arg(Const("Socrates")) == "Socrates"
 
 
-def test_formalization_add_merges_symbols_and_concatenates_formulae() -> None:
+def test_formalization_add_merges_symbols_and_concatenates_formulae():
     left = Formalization(
         predicates={PredicateDef("P", 1)},
         constants={Const("a")},
@@ -103,7 +102,7 @@ def test_formalization_add_merges_symbols_and_concatenates_formulae() -> None:
     assert combined.conclusion == right.conclusion
 
 
-def test_parse_nested_quantifiers_and_connectives() -> None:
+def test_parse_nested_quantifiers_and_connectives():
     preds = {
         PredicateDef("Human", 1),
         PredicateDef("Mortal", 1),
@@ -129,11 +128,9 @@ def test_parse_nested_quantifiers_and_connectives() -> None:
     assert exists_body.right.right == Equals(Var("y"), Const("Socrates"))
 
 
-def test_parse_nary_and_or_are_right_associative_binary_trees() -> None:
+def test_parse_nary_and_or_are_right_associative_binary_trees():
     preds = {PredicateDef("P", 1), PredicateDef("Q", 1), PredicateDef("R", 1)}
-    parsed = FOLParser.parse(
-        "ForAll(x, And(P(x), Q(x), R(x)))", preds, set()
-    )
+    parsed = FOLParser.parse("ForAll(x, And(P(x), Q(x), R(x)))", preds, set())
 
     assert parsed == ForAll(
         Var("x"),
@@ -169,7 +166,7 @@ def test_parse_nary_and_or_are_right_associative_binary_trees() -> None:
         ("Not(Equals(a, b))", Not(Equals(Const("a"), Const("b")))),
     ],
 )
-def test_parse_binary_special_forms(source: str, expected: object) -> None:
+def test_parse_binary_special_forms(source: str, expected: object):
     preds = {PredicateDef("P", 1), PredicateDef("Q", 1)}
     consts = {Const("a"), Const("b")}
 
@@ -185,7 +182,7 @@ def test_parse_binary_special_forms(source: str, expected: object) -> None:
         "And(P(a), Q(a)))",
     ],
 )
-def test_parse_repairs_trailing_parenthesis_imbalance(source: str) -> None:
+def test_parse_repairs_trailing_parenthesis_imbalance(source: str):
     preds = {PredicateDef("P", 1), PredicateDef("Q", 1)}
     consts = {Const("a")}
 
@@ -210,9 +207,7 @@ def test_parse_repairs_trailing_parenthesis_imbalance(source: str) -> None:
         ("P(f(a))", "Unsupported term node"),
     ],
 )
-def test_parse_rejects_invalid_surface_syntax(
-    source: str, match: str
-) -> None:
+def test_parse_rejects_invalid_surface_syntax(source: str, match: str):
     preds = {PredicateDef("P", 1), PredicateDef("Q", 1)}
     consts = {Const("a"), Const("b")}
 
@@ -220,7 +215,7 @@ def test_parse_rejects_invalid_surface_syntax(
         FOLParser.parse(source, preds, consts)
 
 
-def test_formalization_parser_parses_and_merges_multiple_blocks() -> None:
+def test_formalization_parser_parses_and_merges_multiple_blocks():
     parsed = FormalizationParser.parse_multiple(
         [
             StrFormalization(
@@ -248,7 +243,7 @@ def test_formalization_parser_parses_and_merges_multiple_blocks() -> None:
     assert parsed.conclusion == [Predicate("P", [Const("a")])]
 
 
-def test_formalization_parser_reuses_symbols_and_detects_conflicts() -> None:
+def test_formalization_parser_reuses_symbols_and_detects_conflicts():
     previous_predicates = {PredicateDef("P", 1)}
     previous_constants = {Const("a")}
 
@@ -267,7 +262,7 @@ def test_formalization_parser_reuses_symbols_and_detects_conflicts() -> None:
         )
 
 
-def test_z3_interpreter_registers_symbols_idempotently() -> None:
+def test_z3_interpreter_registers_symbols_idempotently():
     context: dict[str, object] = {"__sort__": z3.DeclareSort("Object")}
 
     context = Z3Interpreter.register_predicate(PredicateDef("P", 1), context)
@@ -281,7 +276,7 @@ def test_z3_interpreter_registers_symbols_idempotently() -> None:
     assert context["a"] is first_constant
 
 
-def test_z3_interpreter_translates_formulae_into_solver_semantics() -> None:
+def test_z3_interpreter_translates_formulae_into_solver_semantics():
     context: dict[str, object] = {"__sort__": z3.DeclareSort("Object")}
     for predicate in [
         PredicateDef("Human", 1),
@@ -331,7 +326,7 @@ def test_z3_interpreter_translates_formulae_into_solver_semantics() -> None:
         Equals(Const("a"), Const("a")),
     ],
 )
-def test_z3_interpreter_accepts_all_formula_variants(formula: object) -> None:
+def test_z3_interpreter_accepts_all_formula_variants(formula):
     context: dict[str, object] = {"__sort__": z3.DeclareSort("Object")}
     for predicate in [PredicateDef("P", 1), PredicateDef("Q", 1)]:
         context = Z3Interpreter.register_predicate(predicate, context)
@@ -342,7 +337,7 @@ def test_z3_interpreter_accepts_all_formula_variants(formula: object) -> None:
     assert z3.is_bool(translated)
 
 
-def test_z3_interpreter_reports_missing_context_entries() -> None:
+def test_z3_interpreter_reports_missing_context_entries():
     context: dict[str, object] = {"__sort__": z3.DeclareSort("Object")}
 
     with pytest.raises(KeyError, match="Predicate 'P' not found"):

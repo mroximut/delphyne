@@ -1,3 +1,4 @@
+# pyright: basic
 import os
 import sys
 from pathlib import Path
@@ -7,6 +8,7 @@ import yaml
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
+import z3_tools as z3t  # noqa: E402
 from fol import (  # noqa: E402
     Const,
     Equals,
@@ -19,7 +21,6 @@ from fol import (  # noqa: E402
     StrFormalization,
     Var,
 )
-import z3_tools as z3t  # noqa: E402
 from z3_tools import (  # noqa: E402
     Z3Response,
     check_implication_in_z3,
@@ -28,12 +29,11 @@ from z3_tools import (  # noqa: E402
     run_fol_in_z3,
 )
 
-
 DEMOS = Path(__file__).parents[1] / "demos"
 
 
 @pytest.fixture(autouse=True)
-def reset_z3_tool_globals() -> None:
+def reset_z3_tool_globals():
     z3t._reset_global_predicates_and_constants()
     z3t._reset_global_z3_solver_and_context()
     yield
@@ -79,7 +79,7 @@ def demo_answer_formalizations(demo_name: str) -> list[StrFormalization]:
     return [StrFormalization(**answer) for answer in answers]
 
 
-def test_make_formalization_uses_previously_persisted_symbols() -> None:
+def test_make_formalization_uses_previously_persisted_symbols():
     z3t._set_global_predicates_and_constants(
         {PredicateDef("P", 1)}, {Const("a")}
     )
@@ -117,7 +117,7 @@ def test_run_fol_in_z3_constraint_mode_reports_satisfiability(
     assert response.model is not None
 
 
-def test_run_fol_in_z3_constraint_mode_ignores_conclusions() -> None:
+def test_run_fol_in_z3_constraint_mode_ignores_conclusions():
     response = run_fol_in_z3(
         unary_form(["P(a)"], conclusion=["P(a)"]),
         step_type="Constraint",
@@ -127,7 +127,7 @@ def test_run_fol_in_z3_constraint_mode_ignores_conclusions() -> None:
     assert response.error is None
 
 
-def test_run_fol_in_z3_all_mode_proves_and_refutes_conclusions() -> None:
+def test_run_fol_in_z3_all_mode_proves_and_refutes_conclusions():
     entailed = run_fol_in_z3(
         implication_form(include_rule=True), step_type="All"
     )
@@ -144,7 +144,7 @@ def test_run_fol_in_z3_all_mode_proves_and_refutes_conclusions() -> None:
     assert not_entailed.model is not None
 
 
-def test_run_fol_in_z3_all_mode_allows_repeated_tracked_formulae() -> None:
+def test_run_fol_in_z3_all_mode_allows_repeated_tracked_formulae():
     response = run_fol_in_z3(
         unary_form(["Not(P(a))"], conclusion=["P(a)"]),
         step_type="All",
@@ -155,7 +155,7 @@ def test_run_fol_in_z3_all_mode_allows_repeated_tracked_formulae() -> None:
     assert response.model is not None
 
 
-def test_folio_oneshot_demo_proves_conclusion() -> None:
+def test_folio_oneshot_demo_proves_conclusion():
     formalizations = demo_answer_formalizations("folio_oneshot.demo.yaml")
 
     parsed = make_formalization(formalizations)
@@ -176,7 +176,7 @@ def test_folio_oneshot_demo_proves_conclusion() -> None:
     assert response.error is None
 
 
-def test_folio_iterative_demo_proves_conclusion() -> None:
+def test_folio_iterative_demo_proves_conclusion():
     formalizations = demo_answer_formalizations("folio_iterative.demo.yaml")
 
     parsed = make_formalization(formalizations)
@@ -197,7 +197,7 @@ def test_folio_iterative_demo_proves_conclusion() -> None:
     assert response.error is None
 
 
-def test_folio_iterative_demo_can_be_executed_incrementally() -> None:
+def test_folio_iterative_demo_can_be_executed_incrementally():
     declarations, first_constraints, second_constraints, conclusion = (
         demo_answer_formalizations("folio_iterative.demo.yaml")
     )
@@ -236,7 +236,7 @@ def test_folio_iterative_demo_can_be_executed_incrementally() -> None:
     assert final_response.error is None
 
 
-def test_run_fol_in_z3_returns_parse_errors_without_raising() -> None:
+def test_run_fol_in_z3_returns_parse_errors_without_raising():
     response = run_fol_in_z3(unary_form(["P(x)"]), step_type="Constraint")
 
     assert response == Z3Response(
@@ -250,7 +250,7 @@ def test_run_fol_in_z3_returns_parse_errors_without_raising() -> None:
     assert "Unknown symbol in term position" in response.error
 
 
-def test_run_fol_in_z3_parse_error_includes_bad_formula() -> None:
+def test_run_fol_in_z3_parse_error_includes_bad_formula():
     bad_formula = "Equals(a, a) -> True"
     response = run_fol_in_z3(
         [
@@ -270,7 +270,7 @@ def test_run_fol_in_z3_parse_error_includes_bad_formula() -> None:
     assert repr(bad_formula) in response.error
 
 
-def test_formalization_parser_rejects_predicate_constant_collision() -> None:
+def test_formalization_parser_rejects_predicate_constant_collision():
     response = run_fol_in_z3(
         [
             StrFormalization(
@@ -288,7 +288,7 @@ def test_formalization_parser_rejects_predicate_constant_collision() -> None:
     assert "'Peter'" in response.error
 
 
-def test_run_fml_in_z3_constraint_and_all_modes_with_ast_input() -> None:
+def test_run_fml_in_z3_constraint_and_all_modes_with_ast_input():
     formalization = Formalization(
         predicates={PredicateDef("P", 1), PredicateDef("Q", 1)},
         constants={Const("a")},
@@ -314,7 +314,7 @@ def test_run_fml_in_z3_constraint_and_all_modes_with_ast_input() -> None:
     assert all_steps.error is None
 
 
-def test_run_fml_in_z3_catches_interpreter_errors() -> None:
+def test_run_fml_in_z3_catches_interpreter_errors():
     missing_constant = Formalization(
         predicates={PredicateDef("P", 1)},
         constants=set(),
@@ -330,7 +330,7 @@ def test_run_fml_in_z3_catches_interpreter_errors() -> None:
     assert response.error.startswith("KeyError:")
 
 
-def test_run_fml_in_z3_resets_solver_by_default() -> None:
+def test_run_fml_in_z3_resets_solver_by_default():
     contradictory = Formalization(
         predicates={PredicateDef("P", 1)},
         constants={Const("a")},
@@ -354,7 +354,7 @@ def test_run_fml_in_z3_resets_solver_by_default() -> None:
     assert second.status == "sat"
 
 
-def test_run_fml_in_z3_can_persist_solver_assertions() -> None:
+def test_run_fml_in_z3_can_persist_solver_assertions():
     assert (
         run_fol_in_z3(
             unary_form(["P(a)"]),
@@ -374,7 +374,7 @@ def test_run_fml_in_z3_can_persist_solver_assertions() -> None:
     assert follow_up.status == "unsat"
 
 
-def test_persisted_symbols_allow_later_incremental_parse() -> None:
+def test_persisted_symbols_allow_later_incremental_parse():
     first = run_fol_in_z3(
         unary_form(["P(a)"]),
         step_type="Constraint",
@@ -396,7 +396,7 @@ def test_persisted_symbols_allow_later_incremental_parse() -> None:
     assert follow_up.error is None
 
 
-def test_non_persisted_predicates_and_constants_are_cleared() -> None:
+def test_non_persisted_predicates_and_constants_are_cleared():
     response = run_fol_in_z3(
         unary_form(["P(a)"]),
         step_type="Constraint",
@@ -407,7 +407,7 @@ def test_non_persisted_predicates_and_constants_are_cleared() -> None:
     assert z3t._get_global_predicates_and_constants() == (set(), set())
 
 
-def test_reset_on_start_clears_incremental_symbol_context() -> None:
+def test_reset_on_start_clears_incremental_symbol_context():
     run_fol_in_z3(
         unary_form(["P(a)"]),
         step_type="Constraint",
@@ -425,7 +425,7 @@ def test_reset_on_start_clears_incremental_symbol_context() -> None:
     assert "Unknown function symbol" in response.error
 
 
-def test_check_implication_in_z3_with_constraints() -> None:
+def test_check_implication_in_z3_with_constraints():
     stronger = unary_form(["P(a)", "Q(a)"])
     stronger[0].predicates = ["P(1)", "Q(1)"]
     weaker = [
@@ -447,7 +447,7 @@ def test_check_implication_in_z3_with_constraints() -> None:
     assert check_implication_in_z3(weaker, unrelated).status == "sat"
 
 
-def test_check_implication_in_z3_compares_conclusions() -> None:
+def test_check_implication_in_z3_compares_conclusions():
     p_conclusion = [
         StrFormalization(
             predicates=["P(1)", "Q(1)"],
@@ -473,7 +473,7 @@ def test_check_implication_in_z3_compares_conclusions() -> None:
     )
 
 
-def test_check_implication_in_z3_resets_previous_global_symbols() -> None:
+def test_check_implication_in_z3_resets_previous_global_symbols():
     z3t._set_global_predicates_and_constants(
         {PredicateDef("Old", 1)}, {Const("o")}
     )
@@ -488,7 +488,7 @@ def test_check_implication_in_z3_resets_previous_global_symbols() -> None:
     assert constants == {Const("a")}
 
 
-def test_timeout_parameter_is_accepted_for_easy_queries() -> None:
+def test_timeout_parameter_is_accepted_for_easy_queries():
     response = run_fol_in_z3(
         unary_form(["P(a)"]),
         step_type="Constraint",
@@ -499,7 +499,7 @@ def test_timeout_parameter_is_accepted_for_easy_queries() -> None:
     assert response.error is None
 
 
-def test_global_solver_helpers_initialize_and_reset_context() -> None:
+def test_global_solver_helpers_initialize_and_reset_context():
     z3t._global_z3_solver = None
     z3t._global_z3_context = None
 
@@ -517,7 +517,7 @@ def test_global_solver_helpers_initialize_and_reset_context() -> None:
     assert "temporary" not in reset_context
 
 
-def test_run_fol_in_z3_parses_multi_block_declarations() -> None:
+def test_run_fol_in_z3_parses_multi_block_declarations():
     response = run_fol_in_z3(
         [
             StrFormalization(predicates=["P(1)"], constants=["a"]),
@@ -535,7 +535,7 @@ def test_run_fol_in_z3_parses_multi_block_declarations() -> None:
     assert response.error is None
 
 
-def test_run_fol_in_z3_handles_equality_reasoning() -> None:
+def test_run_fol_in_z3_handles_equality_reasoning():
     response = run_fml_in_z3(
         Formalization(
             predicates={PredicateDef("P", 1)},

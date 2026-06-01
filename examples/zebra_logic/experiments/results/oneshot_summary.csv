@@ -1,0 +1,13 @@
+correct,total,strategy_type,sequence_type,aggregation_type,reflection_type,oneshot_model_type,oneshot_reflect_type,seed
+106,134,oneshot,all_normal_reflect,,always,normal,always,0
+106,134,oneshot,all_normal_reflect,,always,normal,only_if_sat,0
+100,134,oneshot,all_normal_reflect,,always,normal,never,0
+111,134,oneshot,all_normal_reflect,,always,normal,always,1
+111,134,oneshot,all_normal_reflect,,always,normal,only_if_sat,1
+101,134,oneshot,all_normal_reflect,,always,normal,never,1
+113,134,oneshot,all_normal_reflect,,always,normal,always,2
+113,134,oneshot,all_normal_reflect,,always,normal,only_if_sat,2
+101,134,oneshot,all_normal_reflect,,always,normal,never,2
+107,134,blacklist,,,,iterative_blacklist,only_if_sat,0
+110,134,blacklist,,,,iterative_blacklist,only_if_sat,1
+112,134,blacklist,,,,iterative_blacklist,only_if_sat,2
